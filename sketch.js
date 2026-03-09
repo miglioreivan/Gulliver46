@@ -94,8 +94,8 @@ function initGame() {
 
 function spawnStationGroup() {
     waitingPeds = [];
-    let numStudents = 5 + (currentStationIndex * 5);
-
+    // Quantità di studenti casuale, minimo 5, che cresce man mano che ci si avvicina al capolinea
+    let numStudents = floor(random(5, 10 + (currentStationIndex * 4)));
     let sx, sy;
     let validArea = false;
     // Cerchiamo un'area che possa contenere sia il marciapiede (sopra) che il posteggio (sotto)
