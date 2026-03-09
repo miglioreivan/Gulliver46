@@ -452,7 +452,7 @@ function drawModalMessage(title, subtitle, buttonText, showPeds = false) {
     let btnH = 55;
     let pulse = sin(frameCount * 0.1) * 5; // Effetto respiro
     let btnX = width / 2 - (btnW + pulse) / 2;
-    let btnY = height / 2 + 50;
+    let btnY = height / 2 + 80; // Aumentato spazio (padding) per evitare sovrapposizione con i testi sopra
 
     fill(UI_BUTTON_RED);
     rect(btnX, btnY, btnW + pulse, btnH, 12);
@@ -475,7 +475,7 @@ function drawGameOverMenu() {
 let btnBounds = { w: 210, h: 55 }; // Shared button logic size
 function isButtonTapped(mx, my) {
     let btnX = width / 2 - btnBounds.w / 2;
-    let btnY = height / 2 + 50;
+    let btnY = height / 2 + 80;
     return (mx > btnX && mx < btnX + btnBounds.w && my > btnY && my < btnY + btnBounds.h);
 }
 
@@ -713,7 +713,7 @@ function mousePressed() {
             if (mouseY > btnRipartiY && mouseY < btnRipartiY + btnH) {
                 initGame();
             } else if (mouseY > btnVotaY && mouseY < btnVotaY + btnH) {
-                window.open('https://gulliver.univpm.it/', '_blank');
+                window.open('https://www.gulliversinistrauniversitaria.it/', '_blank');
             } else if (mouseY > btnReportY && mouseY < btnReportY + btnH) {
                 window.open('https://ugc.production.linktr.ee/818a15e8-6f08-441d-84f9-d8a20c7a6499_REPORT-QUESTIONARIO-TRASPORTI.pdf', '_blank');
             }
