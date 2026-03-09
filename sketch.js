@@ -1,96 +1,108 @@
 // Costanti di Gioco
-const GRID_SIZE = 20; // Dimensione in pixel di una cella della griglia
+const GRID_SIZE = 20;
 let cols, rows;
 
 // Colori Tema Gulliver
-const COLOR_BG_OCEAN = '#2c3e50'; // Sfondo esterno al canvas gestito nel CSS
-const COLOR_ISLAND = '#ecf0f1'; // Colore base dell'isola (strada chiara)
-const COLOR_BUS_HEAD = '#e74c3c'; // Rosso Gulliver intenso per la testa
-const COLOR_BUS_BODY = '#c0392b'; // Rosso Gulliver scuro per il corpo
-const COLOR_STUDENT = '#3498db'; // Azzurro per contrastare e identificare i passeggeri
-const COLOR_TEXT = '#2c3e50';
+const COLOR_ISLAND = '#ecf0f1';
+const COLOR_BUS_HEAD = '#e74c3c';
+const COLOR_BUS_BODY = '#c0392b';
+const COLOR_STUDENT = '#2980b9'; // Blu intenso per contrasto
 
 // Entità
 let bus;
-let student;
+let currentGroup = []; // Il "mucchio" di studenti alla fermata
 let passengers = 0;
-const MAX_PASSENGERS = 46; // Il limite fatidico del 46
-const GAME_SPEED = 10; // Frame per secondo (determina la velocità dello snake)
+const GAME_SPEED = 8; // Leggermente più lento per manovrare meglio
 
 // Stati di Gioco
-let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER', 'FULL'
+let gameState = 'START';
+// 'START', 'PLAYING', 'GAMEOVER', 'EXPLODING_SHAKE', 'EXPLODING_BOOM', 'WALKING_AWAY', 'FINAL_SCREEN'
 
-// Mappa delle stazioni (Solo visiva)
+// Mappa delle stazioni in ordine
 const routeStations = [
-    "Piazza Ugo Bassi",
-    "Via Colombo",
-    "Brecce Bianche",
-    "Ingegneria",
-    "Scienze",
-    "Tavernelle!"
+    "Piazza Cavour - Capolinea",
+    "Via Frediani",
+    "Via Giannelli",
+    "Via Bocconi (Semaforo)",
+    "Cimitero Tavernelle",
+    "Parcheggio Cimitero",
+    "Via San Giacomo Della Marca",
+    "Parcheggio Via Ranieri",
+    "Liceo Galilei",
+    "Universita' Ingegneria"
 ];
 let currentStationIndex = 0;
-let scoreToNextStation = 5;
+
+// Variabili Animazione Finale
+let explosionTimer = 0;
+let particles = [];
+let fleeingStudents = [];
+let textOpacity = 0;
 
 // Controlli Mobile
 let touchStartX = 0;
 let touchStartY = 0;
 
 function setup() {
-    // Crea un canvas responsive (mantiene proporzioni rettangolari o si adatta al mobile)
     let canvasW = min(windowWidth * 0.9, 600);
-    let canvasH = min(windowHeight * 0.9, 800);
-
-    // Arrotonda per difetto per allineare perfettamente alla griglia
+    let canvasH = min(windowHeight * 0.95, 800);
     canvasW = floor(canvasW / GRID_SIZE) * GRID_SIZE;
     canvasH = floor(canvasH / GRID_SIZE) * GRID_SIZE;
-
     createCanvas(canvasW, canvasH);
-
     cols = width / GRID_SIZE;
     rows = height / GRID_SIZE;
-
     frameRate(GAME_SPEED);
-
     initGame();
 }
 
 function initGame() {
-    // Inizializza il Bus al centro spostato verso il basso
     let startX = floor(cols / 2);
     let startY = floor(rows * 0.8);
-
     bus = {
         body: [createVector(startX, startY)],
         xdir: 0,
-        ydir: -1 // Parte andando verso l'alto (verso Tavernelle)
+        ydir: -1
     };
-
     passengers = 0;
     currentStationIndex = 0;
-    spawnStudent();
+    explosionTimer = 0;
+    particles = [];
+    fleeingStudents = [];
+    textOpacity = 0;
+    spawnStationGroup();
     gameState = 'START';
 }
 
-function spawnStudent() {
-    let validPos = false;
-    let newVect;
+function spawnStationGroup() {
+    currentGroup = [];
+    // Più avanziamo, più persone aspettano alla fermata (da 2 a 6 persone)
+    let numStudents = min(2 + floor(currentStationIndex / 2), 6);
 
-    // Evita di spawnare lo studente sopra il corpo del bus
-    while (!validPos) {
-        let rX = floor(random(cols));
-        let rY = floor(random(rows));
-        newVect = createVector(rX, rY);
+    // Trova un'area libera 3x3 per la fermata
+    let validArea = false;
+    let stationX, stationY;
 
-        validPos = true;
+    while (!validArea) {
+        stationX = floor(random(2, cols - 3));
+        stationY = floor(random(2, rows - 3));
+        validArea = true;
+
+        // Controlla che il bus non sia già lì
         for (let p of bus.body) {
-            if (p.x === newVect.x && p.y === newVect.y) {
-                validPos = false;
+            if (abs(p.x - stationX) < 3 && abs(p.y - stationY) < 3) {
+                validArea = false;
                 break;
             }
         }
     }
-    student = newVect;
+
+    // Genera gli studenti intorno a quel punto
+    for (let i = 0; i < numStudents; i++) {
+        // Offset casuali attorno al centro fermata
+        let ox = floor(random(-1, 2));
+        let oy = floor(random(-1, 2));
+        currentGroup.push(createVector(stationX + ox, stationY + oy));
+    }
 }
 
 function draw() {
@@ -100,14 +112,15 @@ function draw() {
         drawStartScreen();
     } else if (gameState === 'PLAYING') {
         updateBus();
+        drawStationMarker();
         drawEntities();
         drawUI();
     } else if (gameState === 'GAMEOVER') {
-        drawEntities(); // Disegna l'ultima posizione per contesto
-        drawGameOverScreen();
-    } else if (gameState === 'FULL') {
         drawEntities();
-        drawExplosionScreen();
+        drawGameOverScreen();
+    } else {
+        // Tutta la sequenza finale usa logica di update interna al draw per maggior fluidità
+        handleEndingSequence();
     }
 }
 
@@ -120,13 +133,11 @@ function updateBus() {
     head.x += bus.xdir;
     head.y += bus.ydir;
 
-    // Controllo collisione con i bordi dell'isola (Morte)
+    // Morte se esce dall'isola o si mangia la coda
     if (head.x < 0 || head.y < 0 || head.x >= cols || head.y >= rows) {
         gameState = 'GAMEOVER';
         return;
     }
-
-    // Controllo collisione con se stesso (Morte)
     for (let i = 0; i < bus.body.length; i++) {
         let part = bus.body[i];
         if (head.x === part.x && head.y === part.y) {
@@ -137,54 +148,234 @@ function updateBus() {
 
     bus.body.push(head);
 
-    // Controllo raccolta Studente
-    if (head.x === student.x && head.y === student.y) {
-        passengers++;
-        updateStationProgress();
-
-        if (passengers >= MAX_PASSENGERS) {
-            gameState = 'FULL';
-        } else {
-            spawnStudent();
+    // Controllo raccolta studenti nel mucchio corrente
+    let ateSomeone = false;
+    for (let i = currentGroup.length - 1; i >= 0; i--) {
+        let st = currentGroup[i];
+        if (head.x === st.x && head.y === st.y) {
+            passengers++;
+            currentGroup.splice(i, 1);
+            ateSomeone = true;
+            break;
         }
-        // Non rimuoviamo la coda, quindi il bus "cresce"
-    } else {
-        // Se non ha raccolto nessuno, rimuovi l'ultimo segmento (la coda avanza)
-        bus.body.shift();
     }
-}
 
-function updateStationProgress() {
-    if (passengers > scoreToNextStation && currentStationIndex < routeStations.length - 1) {
+    if (!ateSomeone) {
+        bus.body.shift(); // Avanza normalmente
+    }
+
+    // Controllo se il mucchio della fermata è finito
+    if (currentGroup.length === 0) {
         currentStationIndex++;
-        scoreToNextStation += 8; // Più studenti servono per la prossima fermata
+
+        // Se abbiamo raggiunto Tavernelle / Ingegneria, innesca il finale!
+        // L'indice 9 è "Universita' Ingegneria"
+        if (currentStationIndex >= routeStations.length - 1) {
+            gameState = 'EXPLODING_SHAKE';
+            // Aumenta il framerate per animazioni più fluide nel finale
+            frameRate(30);
+        } else {
+            spawnStationGroup();
+        }
     }
 }
 
 // ----------------------------------------
-// GRAFICA (DRAW)
+// SEQUENZA FINALE (TAVERNELLE)
+// ----------------------------------------
+
+function handleEndingSequence() {
+    drawIslandEnvironment(); // Sfondo pulito
+    drawStationMarker(); // Mostra che siamo all'università
+
+    let head = bus.body[bus.body.length - 1];
+    let headPxX = head.x * GRID_SIZE;
+    let headPxY = head.y * GRID_SIZE;
+
+    explosionTimer++;
+
+    if (gameState === 'EXPLODING_SHAKE') {
+        // 1. Il bus vibra violentemente e fa fumo
+        let shakeX = random(-4, 4);
+        let shakeY = random(-4, 4);
+
+        push();
+        translate(shakeX, shakeY);
+        drawEntities();
+        pop();
+
+        // Genera fumo nero/grigio
+        if (explosionTimer % 2 === 0) {
+            particles.push(new SmokeParticle(headPxX + GRID_SIZE / 2, headPxY + GRID_SIZE / 2));
+        }
+
+        if (explosionTimer > 90) { // Dopo 3 secondi a 30fps
+            gameState = 'EXPLODING_BOOM';
+            explosionTimer = 0;
+            // Converti ogni pezzo del bus in uno studente in fuga
+            for (let p of bus.body) {
+                fleeingStudents.push(new FleeingStudent(p.x * GRID_SIZE, p.y * GRID_SIZE));
+            }
+        }
+
+    } else if (gameState === 'EXPLODING_BOOM') {
+        // 2. Esplosione arancione gigante
+        // Non disegniamo più il bus, ma l'esplosione!
+        let r = explosionTimer * 15;
+        fill(255, 100, 0, 255 - explosionTimer * 5); // Sfuma
+        noStroke();
+        ellipse(headPxX + GRID_SIZE / 2, headPxY + GRID_SIZE / 2, r, r);
+
+        // Nuvola bianca al centro ("fumetto scoppiato")
+        fill(255, 255, 255, 200 - explosionTimer * 2);
+        ellipse(headPxX + GRID_SIZE / 2, headPxY + GRID_SIZE / 2, r / 2, r / 2);
+
+        if (explosionTimer > 60) {
+            gameState = 'WALKING_AWAY';
+            explosionTimer = 0;
+        }
+
+    } else if (gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN') {
+        // 3. I passeggeri abbandonati incamminano verso Nord-Est (Università)
+        for (let fs of fleeingStudents) {
+            fs.update();
+            fs.show();
+        }
+
+        if (explosionTimer > 60) {
+            gameState = 'FINAL_SCREEN';
+        }
+
+        // 4. Testo in sovraimpressione che sfuma in entrata
+        if (gameState === 'FINAL_SCREEN') {
+            textOpacity = min(textOpacity + 2, 255);
+
+            fill(0, textOpacity * 0.8); // Sfondo scuro semitrasparente
+            rect(0, 0, width, height);
+
+            fill(255, textOpacity);
+            textAlign(CENTER, CENTER);
+            textSize(24);
+            text("Il 46 è pieno.", width / 2, height / 2 - 40);
+
+            textSize(18);
+            text("Fartela a piedi non è il massimo.", width / 2, height / 2 + 10);
+
+            fill(COLOR_BUS_HEAD);
+            textSize(36);
+            text("VOTA GULLIVER", width / 2, height / 2 + 70);
+
+            // Rimetti il framerate basso se qualcuno clicca o tocca
+            if (mouseIsPressed || touches.length > 0) {
+                window.open('https://gulliver.univpm.it/', '_blank');
+            }
+        }
+    }
+
+    // Aggiorna e mostra le particelle vive (Fumo)
+    for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        particles[i].show();
+        if (particles[i].alpha <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+}
+
+// --- Classi per le animazioni finali ---
+
+class SmokeParticle {
+    constructor(x, y) {
+        this.x = x + random(-20, 20);
+        this.y = y + random(-20, 20);
+        this.vx = random(-1, 1);
+        this.vy = random(-3, -1);
+        this.alpha = 255;
+        this.d = random(10, 30);
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= 5;
+    }
+    show() {
+        noStroke();
+        fill(100, 100, 100, this.alpha);
+        ellipse(this.x, this.y, this.d);
+    }
+}
+
+class FleeingStudent {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        // Si muovono tutti generalmente verso l'alto-destra (Nord-Est teorico)
+        this.vx = random(0.2, 1);
+        this.vy = random(-1, -0.2);
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+    }
+    show() {
+        noStroke();
+        fill(COLOR_STUDENT);
+        rect(this.x, this.y, GRID_SIZE - 6, GRID_SIZE - 6, 3);
+    }
+}
+
+
+// ----------------------------------------
+// GRAFICA BASE (DRAW)
 // ----------------------------------------
 
 function drawIslandEnvironment() {
     background(COLOR_ISLAND);
-
-    // Disegna un pattern a griglia molto leggero per il feeling "Crossy Road"
     stroke(220);
     strokeWeight(0.5);
-    for (let i = 0; i < cols; i++) {
-        line(i * GRID_SIZE, 0, i * GRID_SIZE, height);
+    for (let i = 0; i < cols; i++) line(i * GRID_SIZE, 0, i * GRID_SIZE, height);
+    for (let j = 0; j < rows; j++) line(0, j * GRID_SIZE, width, j * GRID_SIZE);
+}
+
+function drawStationMarker() {
+    if (currentGroup.length === 0) return;
+    // Calcola il centro del mucchio per mettere il nome
+    let cx = 0, cy = 0;
+    for (let st of currentGroup) {
+        cx += st.x; cy += st.y;
     }
-    for (let j = 0; j < rows; j++) {
-        line(0, j * GRID_SIZE, width, j * GRID_SIZE);
-    }
+    cx /= currentGroup.length;
+    cy /= currentGroup.length;
+
+    fill(50, 150);
+    noStroke();
+    ellipse(cx * GRID_SIZE + GRID_SIZE / 2, cy * GRID_SIZE + GRID_SIZE / 2, GRID_SIZE * 5, GRID_SIZE * 5);
+
+    fill(0);
+    textAlign(CENTER, BOTTOM);
+    textSize(12);
+    // Testo sopra il mucchio
+    let txtY = (cy - 2) * GRID_SIZE;
+    // Evita che il testo esca dallo schermo
+    txtY = max(txtY, 60);
+    text("Fermata:", cx * GRID_SIZE, txtY - 15);
+    fill(COLOR_BUS_HEAD);
+    text(routeStations[currentStationIndex], cx * GRID_SIZE, txtY);
 }
 
 function drawEntities() {
     noStroke();
 
-    // Disegna Studente
+    // Disegna Studenti (Fermata)
     fill(COLOR_STUDENT);
-    rect(student.x * GRID_SIZE + 2, student.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4, 3);
+    for (let st of currentGroup) {
+        // Disegna omini "tondeggianti" (pallini)
+        ellipse(st.x * GRID_SIZE + GRID_SIZE / 2, st.y * GRID_SIZE + GRID_SIZE / 2, GRID_SIZE - 4, GRID_SIZE - 4);
+        // Testa
+        fill('#f1c40f'); // Testoline per sembrare persone
+        ellipse(st.x * GRID_SIZE + GRID_SIZE / 2, st.y * GRID_SIZE + GRID_SIZE / 2 - 2, GRID_SIZE - 10, GRID_SIZE - 10);
+        fill(COLOR_STUDENT);
+    }
 
     // Disegna Bus (Coda)
     fill(COLOR_BUS_BODY);
@@ -198,18 +389,18 @@ function drawEntities() {
     fill(COLOR_BUS_HEAD);
     rect(head.x * GRID_SIZE, head.y * GRID_SIZE, GRID_SIZE, GRID_SIZE, 4);
 
-    // Piccoli fari per capire la direzione (opzionale per estetica)
+    // Fari direzionali
     fill(255);
-    if (bus.ydir === -1) { // Su
+    if (bus.ydir === -1) {
         rect(head.x * GRID_SIZE + 2, head.y * GRID_SIZE + 2, 4, 4);
         rect(head.x * GRID_SIZE + GRID_SIZE - 6, head.y * GRID_SIZE + 2, 4, 4);
-    } else if (bus.ydir === 1) { // Giù
+    } else if (bus.ydir === 1) {
         rect(head.x * GRID_SIZE + 2, head.y * GRID_SIZE + GRID_SIZE - 6, 4, 4);
         rect(head.x * GRID_SIZE + GRID_SIZE - 6, head.y * GRID_SIZE + GRID_SIZE - 6, 4, 4);
-    } else if (bus.xdir === -1) { // Sinistra
+    } else if (bus.xdir === -1) {
         rect(head.x * GRID_SIZE + 2, head.y * GRID_SIZE + 2, 4, 4);
         rect(head.x * GRID_SIZE + 2, head.y * GRID_SIZE + GRID_SIZE - 6, 4, 4);
-    } else if (bus.xdir === 1) { // Destra
+    } else if (bus.xdir === 1) {
         rect(head.x * GRID_SIZE + GRID_SIZE - 6, head.y * GRID_SIZE + 2, 4, 4);
         rect(head.x * GRID_SIZE + GRID_SIZE - 6, head.y * GRID_SIZE + GRID_SIZE - 6, 4, 4);
     }
@@ -223,29 +414,27 @@ function drawUI() {
     fill(255);
     textAlign(LEFT, CENTER);
     textSize(16);
-    text(`Persone: ${passengers}/${MAX_PASSENGERS}`, 10, 20);
+    text(`Persone: ${passengers}`, 10, 20);
 
     textAlign(RIGHT, CENTER);
-    text(`Fermata: ${routeStations[currentStationIndex]}`, width - 10, 20);
+    // Mostra la destinazione finale sempre a destra
+    text("Dir: " + routeStations[routeStations.length - 1], width - 10, 20);
 }
 
 // ----------------------------------------
-// SCHERMATE DI STATO
+// SCHERMATE DI STATO BASE
 // ----------------------------------------
 
 function drawStartScreen() {
     fill(0, 200);
     rect(0, 0, width, height);
-
     fill(255);
     textAlign(CENTER, CENTER);
     textSize(32);
     text("GULLIVER BUS 46", width / 2, height / 3 - 20);
-
     textSize(16);
     fill(200);
-    text("Raccogli gli studenti lungo il percorso\nverso Tavernelle.", width / 2, height / 3 + 30);
-
+    text("Raccogli gli studenti alle fermate\nfino a Tavernelle.", width / 2, height / 3 + 30);
     fill(COLOR_BUS_HEAD);
     rect(width / 2 - 75, height / 2, 150, 50, 10);
     fill(255);
@@ -256,42 +445,14 @@ function drawStartScreen() {
 function drawGameOverScreen() {
     fill(0, 200);
     rect(0, 0, width, height);
-
     fill(COLOR_BUS_HEAD);
     textAlign(CENTER, CENTER);
     textSize(32);
     text("INCIDENTE STRADALE", width / 2, height / 3 - 20);
-
     fill(255);
     textSize(16);
-    text(`Hai raccolto ${passengers} passeggeri.\nHai sbandato prima di arrivare a Tavernelle.`, width / 2, height / 3 + 30);
+    text(`Hai raccolto ${passengers} passeggeri.\nHai sbandato prima di arrivare in Facoltà.`, width / 2, height / 3 + 30);
 
-    drawRestartButton();
-}
-
-function drawExplosionScreen() {
-    fill(COLOR_BUS_HEAD); // Sfondo rosso esplosivo Gulliver
-    rect(0, 0, width, height);
-
-    fill(255);
-    textAlign(CENTER, CENTER);
-    textSize(50);
-    text("💥 BOOM! 💥", width / 2, height / 3);
-
-    textSize(24);
-    text("IL 46 È PIENO.", width / 2, height / 2 - 20);
-
-    textSize(16);
-    text("Non puoi salire.\nTe la fai a piedi fino in facoltà... \nO voti Gulliver per più corse!", width / 2, height / 2 + 30);
-
-    // Ripristina stili per il bottone speciale Vota Gulliver se necessario
-    fill('#ffffff');
-    rect(width / 2 - 100, height / 2 + 100, 200, 50, 25);
-    fill(COLOR_BUS_HEAD);
-    text("SCOPRI IL PROGRAMMA", width / 2, height / 2 + 125);
-}
-
-function drawRestartButton() {
     fill(100);
     rect(width / 2 - 75, height / 2 + 100, 150, 40, 5);
     fill(255);
@@ -317,59 +478,50 @@ function keyPressed() {
     }
 }
 
-// Supporto per il tocco (Mobile)
 function touchStarted() {
     touchStartX = mouseX;
     touchStartY = mouseY;
 
-    // Gestione click schermate
     if (gameState === 'START') {
         let btnY = height / 2;
         if (mouseY > btnY && mouseY < btnY + 50) {
+            // Reimposta frameRate al click per sicurezza
+            frameRate(GAME_SPEED);
             gameState = 'PLAYING';
         }
     } else if (gameState === 'GAMEOVER') {
         let btnY = height / 2 + 100;
         if (mouseY > btnY && mouseY < btnY + 40) {
+            frameRate(GAME_SPEED);
             initGame();
             gameState = 'PLAYING';
         }
-    } else if (gameState === 'FULL') {
-        let btnY = height / 2 + 100;
-        if (mouseY > btnY && mouseY < btnY + 50) {
-            // Qui aprirebbe il PDF del programma, ora ricarica solo al tap
-            window.open('https://github.com/miglioreivan/Gulliver46', '_blank'); // Esempio
-        }
+    } else if (gameState === 'FINAL_SCREEN') {
+        // Call to action finale (click sullo schermo intero porta al sito dell'associazione)
+        window.open('https://gulliver.univpm.it/', '_blank');
     }
-
-    return false; // Prevent default behavior
+    return false;
 }
 
 function touchEnded() {
     if (gameState !== 'PLAYING') return false;
-
     let dx = mouseX - touchStartX;
     let dy = mouseY - touchStartY;
-
-    // Richiede uno swipe minimo
     if (abs(dx) > 30 || abs(dy) > 30) {
         if (abs(dx) > abs(dy)) {
-            // Orizzontale
-            if (dx > 0 && bus.xdir === 0) { bus.xdir = 1; bus.ydir = 0; } // Destra
-            else if (dx < 0 && bus.xdir === 0) { bus.xdir = -1; bus.ydir = 0; } // Sinistra
+            if (dx > 0 && bus.xdir === 0) { bus.xdir = 1; bus.ydir = 0; }
+            else if (dx < 0 && bus.xdir === 0) { bus.xdir = -1; bus.ydir = 0; }
         } else {
-            // Verticale
-            if (dy > 0 && bus.ydir === 0) { bus.xdir = 0; bus.ydir = 1; } // Giù
-            else if (dy < 0 && bus.ydir === 0) { bus.xdir = 0; bus.ydir = -1; } // Su
+            if (dy > 0 && bus.ydir === 0) { bus.xdir = 0; bus.ydir = 1; }
+            else if (dy < 0 && bus.ydir === 0) { bus.xdir = 0; bus.ydir = -1; }
         }
     }
     return false;
 }
 
-// Rilassamento della finestra dinamico
 function windowResized() {
     let canvasW = min(windowWidth * 0.9, 600);
-    let canvasH = min(windowHeight * 0.9, 800);
+    let canvasH = min(windowHeight * 0.95, 800);
     canvasW = floor(canvasW / GRID_SIZE) * GRID_SIZE;
     canvasH = floor(canvasH / GRID_SIZE) * GRID_SIZE;
     resizeCanvas(canvasW, canvasH);
