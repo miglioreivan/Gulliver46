@@ -92,10 +92,19 @@ function initGame() {
     gameState = 'START';
 }
 
+let lastPedestrianCount = 0; // Nuova variabile globale introdotta per contare lo storico pedoni generati
 function spawnStationGroup() {
     waitingPeds = [];
-    // Quantità di studenti casuale, minimo 5, che cresce man mano che ci si avvicina al capolinea
-    let numStudents = floor(random(5, 10 + (currentStationIndex * 4)));
+
+    // Logica incrementale stretta: parte da minimo 7, poi sale TASSATIVAMENTE ad ogni fermata successiva
+    let numStudents = 0;
+    if (currentStationIndex === 0) {
+        numStudents = floor(random(7, 10));
+    } else {
+        let increase = floor(random(2, 6)); // Aggiunge da 2 a 5 pedoni ogni volta in più rispetto alla tappa prima
+        numStudents = lastPedestrianCount + increase;
+    }
+    lastPedestrianCount = numStudents;
     let sx, sy;
     let validArea = false;
     // Cerchiamo un'area che possa contenere sia il marciapiede (sopra) che il posteggio (sotto)
