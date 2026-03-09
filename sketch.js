@@ -230,8 +230,8 @@ function updatePhysics() {
             bus.angle = targetAngle;
 
             // Accelera proporzionalmente alla spinta del dito
-            // Aumentata un pochino la velocità massima al 35% per trovare il giusto compromesso
-            let touchMaxSpeed = bus.maxSpeed * 0.35;
+            // Incrementata la velocità massima (42%)
+            let touchMaxSpeed = bus.maxSpeed * 0.42;
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
 
             // Fai accelerare in modo leggermente più fluido
@@ -568,22 +568,31 @@ function handleEndingSequence() {
             fill(0, textOpacity * 0.85); rect(0, 0, width, height);
             fill(255, textOpacity); textAlign(CENTER, CENTER);
 
-            textSize(24); text("Il 46 è PIENO !!!.", width / 2, height / 2 - 90);
-            textSize(16); text("Fartela a piedi fino ad Ingegneria non è il massimo.", width / 2, height / 2 - 60);
+            textSize(24); text("Il 46 è esploso.", width / 2, height / 2 - 130);
+            textSize(14);
+            text("Troppi passeggeri! Siete rimasti a piedi.", width / 2, height / 2 - 100);
+            text("Gulliver lavora da anni per un trasporto migliore.", width / 2, height / 2 - 80);
 
-            fill(UI_BUTTON_RED); textSize(36); text("VOTA GULLIVER", width / 2, height / 2 - 10);
+            // Tasto 1: Vota Gulliver (Main)
+            let btnW = 220; let btnH = 45;
+            let btnVotaY = height / 2 - 40;
+            fill(UI_BUTTON_RED); rect(width / 2 - btnW / 2, btnVotaY, btnW, btnH, 8);
+            fill(255); textSize(24); text("VOTA GULLIVER", width / 2, btnVotaY + btnH / 2);
 
-            // Statistiche
-            fill(200); textSize(14);
-            text(`Statistiche Autista:\nPasseggeri Abbandonati: ${passengers}\nPedoni Stirati: ${runOverCount}`, width / 2, height / 2 + 50);
+            // Tasto 2: Report Trasporti (Secondary)
+            let btnReportY = height / 2 + 15;
+            fill('#2980b9'); rect(width / 2 - btnW / 2, btnReportY, btnW, btnH, 8);
+            fill(255); textSize(16); text("LEGGI IL REPORT TRASPORTI", width / 2, btnReportY + btnH / 2);
+
+            // Statistiche abbassate
+            fill(200); textSize(12);
+            text(`Statistiche:\nPasseggeri in ritardo: ${passengers}\nPedoni Stirati: ${runOverCount}`, width / 2, height / 2 + 90);
 
             // Pulsante Gioca Di Nuovo Finale
-            let btnW = 200; let btnH = 50;
-            let btnX = width / 2 - btnW / 2;
-            let btnY = height - 100;
-
-            fill(UI_BUTTON_RED); rect(btnX, btnY, btnW, btnH, 8);
-            fill(255); textSize(20); text("GIOCA DI NUOVO", width / 2, btnY + btnH / 2);
+            let btnRipartiY = height - 80;
+            fill(50); stroke(255); strokeWeight(2);
+            rect(width / 2 - btnW / 2, btnRipartiY, btnW, btnH, 8);
+            noStroke(); fill(255); textSize(18); text("GIOCA DI NUOVO", width / 2, btnRipartiY + btnH / 2);
         }
     }
 
@@ -650,20 +659,21 @@ function mousePressed() {
     } else if (gameState === 'GAMEOVER') {
         if (isButtonTapped(mouseX, mouseY)) initGame();
     } else if (gameState === 'FINAL_SCREEN') {
-        // Controlla il click sul pulsante "GIOCA DI NUOVO" a fine partita
-        let btnW = 200; let btnH = 50;
+        let btnW = 220; let btnH = 45;
         let btnX = width / 2 - btnW / 2;
-        let btnY = height - 100;
 
-        // Area per il tasto VOTA GULLIVER
-        let votaY = height / 2 - 10;
-        let votaX = width / 2;
+        let btnVotaY = height / 2 - 40;
+        let btnReportY = height / 2 + 15;
+        let btnRipartiY = height - 80;
 
-        if (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH) {
-            initGame();
-        } else if (abs(mouseX - votaX) < 150 && abs(mouseY - votaY) < 30) {
-            // Altrimenti clicca il link Gulliver solo se tocca la scritta
-            window.open('https://gulliver.univpm.it/', '_blank');
+        if (mouseX > btnX && mouseX < btnX + btnW) {
+            if (mouseY > btnRipartiY && mouseY < btnRipartiY + btnH) {
+                initGame();
+            } else if (mouseY > btnVotaY && mouseY < btnVotaY + btnH) {
+                window.open('https://gulliver.univpm.it/', '_blank');
+            } else if (mouseY > btnReportY && mouseY < btnReportY + btnH) {
+                window.open('https://ugc.production.linktr.ee/818a15e8-6f08-441d-84f9-d8a20c7a6499_REPORT-QUESTIONARIO-TRASPORTI.pdf', '_blank');
+            }
         }
     }
 }
