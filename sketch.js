@@ -37,6 +37,7 @@ let vJoy = {
 // --- Meccanica Fermate ---
 let passengers = 0;
 let gameState = 'START'; // START, PLAYING, LOADING, GAMEOVER, EXPLODING_SHAKE, etc., TUTORIAL
+let isTutorialMode = false;
 
 const routeStations = [
     "Piazza Cavour - Capol.",
@@ -110,6 +111,7 @@ function initGame() {
     passengers = 0;
     currentStationIndex = 0;
     runOverCount = 0;
+    isTutorialMode = false;
     explosionTimer = 0;
     particles = [];
     fleeingStudents = [];
@@ -167,36 +169,31 @@ function draw() {
 
     if (gameState === 'START') {
         drawStartMenu();
-    } else if (gameState === 'PLAYING' || gameState === 'TUTORIAL') {
+    } else if (gameState === 'LOADING') {
+        bus.speed = 0;
+        processStationLoading();
+        drawStationMarker();
+        drawPedestrians();
+        drawBus();
+        drawHUD();
+        if (isTutorialMode) drawTutorialInstructions();
+    } else if (gameState === 'PLAYING' || isTutorialMode || gameState === 'TUTORIAL') {
         handleInput();
         updatePhysics();
         checkStationZone();
-
         drawStationMarker();
         drawPedestrians();
         drawBus();
         drawHUD();
-
-        if (gameState === 'TUTORIAL') {
-            drawTutorialInstructions();
-        }
-
+        if (isTutorialMode) drawTutorialInstructions();
         drawMobileControls();
-    } else if (gameState === 'LOADING') {
-        bus.speed = 0; // Blocca istantaneamente l'inerzia indotta in updatePhysics
-        processStationLoading();
-
-        drawStationMarker();
-        drawPedestrians();
-        drawBus();
-        drawHUD();
     } else if (gameState === 'GAMEOVER') {
         drawStationMarker();
         drawPedestrians();
         drawBus();
-        drawGameOverMenu(); // Refactored ui
+        drawGameOverMenu();
     } else {
-        handleEndingSequence(); // Il finale usa internamente le draw pulite
+        handleEndingSequence();
     }
 }
 
@@ -324,7 +321,7 @@ function processStationLoading() {
     if (waitingPeds.length === 0) {
         // Aspetta un secondo (60 frame) dopo l'ultimo caricamento per dare feedback
         if (loadingTimer > 60) {
-            if (gameState === 'TUTORIAL') {
+            if (isTutorialMode) {
                 initGame(); // Torna al menu principale dopo la prima fermata
                 return;
             }
@@ -560,7 +557,7 @@ function drawPedestrians() {
         // Controlliamo se l'autobus investe un pedone (con margine di tolleranza)
         // Hitbox aumentata a 35 per coprire l'intera lunghezza del bus
         // Collisione se non siamo in tutorial
-        if (gameState !== 'TUTORIAL') {
+        if (!isTutorialMode) {
             if (dist(bus.x, bus.y, p.x, p.y) < 35 && abs(bus.speed) > 0.1) {
                 p.runOver = true; // Mark as run over
                 runOverCount++;
@@ -748,8 +745,10 @@ class FleeingStudent extends Person {
 function mousePressed() {
     if (gameState === 'START') {
         if (isButtonTapped(mouseX, mouseY, 0)) {
+            isTutorialMode = false;
             gameState = 'PLAYING';
         } else if (isButtonTapped(mouseX, mouseY, 1)) {
+            isTutorialMode = true;
             gameState = 'TUTORIAL';
         }
     } else if (gameState === 'GAMEOVER') {
