@@ -448,8 +448,8 @@ function drawModalMessage(title, subtitle, buttonText, showPeds = false) {
     text(subtitle, width / 2, height / 3 + 40);
 
     // Bottone CTA Centrale con Pulsazione
-    let btnW = 210;
-    let btnH = 55;
+    let btnW = 240; // Aumentata larghezza per padding interno
+    let btnH = 60;  // Aumentata altezza per estetica
     let pulse = sin(frameCount * 0.1) * 5; // Effetto respiro
     let btnX = width / 2 - (btnW + pulse) / 2;
     let btnY = height / 2 + 80; // Aumentato spazio (padding) per evitare sovrapposizione con i testi sopra
@@ -472,7 +472,7 @@ function drawGameOverMenu() {
     drawModalMessage(currentIronicMessage, `Passeggeri salvati: ${passengers}\nPedoni stirati: ${runOverCount}\nNon scoraggiarti, Gulliver crede in te!`, "RIPROVA", false);
 }
 
-let btnBounds = { w: 210, h: 55 }; // Shared button logic size
+let btnBounds = { w: 240, h: 60 }; // Shared button logic size
 function isButtonTapped(mx, my) {
     let btnX = width / 2 - btnBounds.w / 2;
     let btnY = height / 2 + 80;
