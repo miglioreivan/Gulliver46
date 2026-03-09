@@ -312,40 +312,32 @@ function processStationLoading() {
     bus.speed = 0;
     bus.acceleration = 0;
     loadingTimer++;
+
+    // Carica i pedoni uno ad uno ogni 5 frame
     if (loadingTimer > 5 && waitingPeds.length > 0) {
-        if (loadingTimer > 100) {
+        loadingTimer = 0;
+        waitingPeds.pop();
+        passengers++;
+    }
+
+    // Se tutti i pedoni sono saliti (o non ce n'erano)
+    if (waitingPeds.length === 0) {
+        // Aspetta un secondo (60 frame) dopo l'ultimo caricamento per dare feedback
+        if (loadingTimer > 60) {
             if (gameState === 'TUTORIAL') {
-                initGame(); // Torna al menu
+                initGame(); // Torna al menu principale dopo la prima fermata
                 return;
             }
-            passengers += waitingPeds.length;
-            waitingPeds = [];
-            currentStationIndex++;
-            loadingTimer = 0;
 
-            if (currentStationIndex >= routeStations.length) {
-                gameState = 'EXPLODING_SHAKE';
-            } else if (currentStationIndex === FINAL_CRASH_STATION_INDEX) {
+            bus.acceleration = 0.1;
+            currentStationIndex++;
+            if (currentStationIndex >= routeStations.length || currentStationIndex === FINAL_CRASH_STATION_INDEX) {
                 gameState = 'EXPLODING_SHAKE';
             } else {
                 spawnStationGroup();
                 gameState = 'PLAYING';
             }
-        } else { // Original logic for loading one by one
             loadingTimer = 0;
-            waitingPeds.pop();
-            passengers++;
-        }
-    }
-
-    if (waitingPeds.length === 0 && loadingTimer > 100) { // Added loadingTimer check to ensure tutorial exit happens after full "load"
-        bus.acceleration = 0.1;
-        currentStationIndex++;
-        if (currentStationIndex >= FINAL_CRASH_STATION_INDEX) {
-            gameState = 'EXPLODING_SHAKE';
-        } else {
-            spawnStationGroup();
-            gameState = 'PLAYING';
         }
     }
 }
