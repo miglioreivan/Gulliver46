@@ -1,13 +1,33 @@
-html, body {
-  margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #f0f0f0;
+/* Reset e setup base */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    /* Evita lo scroll accidentale su smartphone */
+    background-color: #2c3e50;
+    /* Grigio bluastro elegante per lo sfondo dell'oceano/vuoto */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    touch-action: none;
+    /* Disabilita zoom e swipe nativi del browser per permettere lo swipe di gioco */
 }
+
+/* Stile per il contenitore del canvas e l'ombra dell'"Isola" */
+main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 canvas {
-  display: block;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    display: block;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    /* Effetto profondità per l'isola */
+    border-radius: 8px;
+    /* Bordi leggermente arrotondati */
 }
