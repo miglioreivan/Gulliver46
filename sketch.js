@@ -50,8 +50,9 @@ const routeStations = [
 // Correzione: L'indice 4 è Cimitero Tavernelle. Il trigger succede AL COMPLETAMENTO della fermata.
 // L'esplosione dovrebbe scattare PRIMA o APPENA DOPO aver finito "Cimitero Tavernelle"
 // La logica attuale dice: if (currentStationIndex >= FINAL_CRASH_STATION_INDEX).
-// Se voglio che esploda non appena carica i passeggeri della fermata 4 (Cimitero), allora FINAL deve essere 4.
-const FINAL_CRASH_STATION_INDEX = 4;
+// Quando carico la stazione 4 (Cimitero Tavernelle), l'indice diventa 5. Quindi mi serve che il FINAL_CRASH sia a 5
+// per far espoldere il bus DOPO aver caricato il Cimitero e non Bocconi.
+const FINAL_CRASH_STATION_INDEX = 5;
 let currentStationIndex = 0;
 let stationZone;
 let waitingPeds = [];
