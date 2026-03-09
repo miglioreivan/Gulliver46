@@ -235,7 +235,7 @@ function updatePhysics() {
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
 
             // Fai accelerare in modo leggermente più fluido
-            bus.speed = lerp(bus.speed, targetSpeed, 0.20);
+            bus.speed = lerp(bus.speed, targetSpeed, 0.8);
         } else {
             // Se torna al centro, frena da fermo piuttosto rapidamente
             if (bus.speed > 0) bus.speed -= bus.friction * 2;
@@ -378,7 +378,7 @@ function drawHUD() {
     textAlign(RIGHT, CENTER);
     textSize(14);
     text(`Pros: ${routeStations[currentStationIndex]}`, width - 15, 18);
-    text(`Ultima: ${routeStations[FINAL_CRASH_STATION_INDEX - 1]}`, width - 15, 38);
+    text(`Ultima: ${routeStations[FINAL_CRASH_STATION_INDEX]}`, width - 15, 38);
 
     if (gameState === 'LOADING') {
         fill(0, 150);
