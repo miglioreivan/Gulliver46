@@ -207,12 +207,6 @@ function handleInput() {
                     }
                     vJoy.stickX = vJoy.baseX + dx;
                     vJoy.stickY = vJoy.baseY + dy;
-
-                    // Mapping input with a deadzone of roughly 10px
-                    inputState.up = inputState.up || dy < -10;
-                    inputState.down = inputState.down || dy > 10;
-                    inputState.left = inputState.left || dx < -10;
-                    inputState.right = inputState.right || dx > 10;
                     break;
                 }
             }
@@ -224,20 +218,47 @@ function handleInput() {
 }
 
 function updatePhysics() {
-    if (inputState.up) bus.speed += bus.acceleration;
-    else if (inputState.down) bus.speed -= bus.acceleration;
-    else {
-        if (bus.speed > 0) bus.speed -= bus.friction;
-        if (bus.speed < 0) bus.speed += bus.friction;
-        if (abs(bus.speed) < bus.friction) bus.speed = 0;
-    }
+    if (vJoy.active) {
+        // Controllo direzionale assoluto joystick su smartphone
+        let dx = vJoy.stickX - vJoy.baseX;
+        let dy = vJoy.stickY - vJoy.baseY;
+        let distPx = sqrt(dx * dx + dy * dy);
 
-    bus.speed = constrain(bus.speed, -bus.maxSpeed / 2, bus.maxSpeed);
+        if (distPx > 10) {
+            // Se fuori dalla "zona morta", punta l'autobus in quella direzione
+            let targetAngle = atan2(dy, dx);
+            let diff = targetAngle - bus.angle;
 
-    if (abs(bus.speed) > 0.5) {
-        let turnDir = (bus.speed > 0) ? 1 : -1;
-        if (inputState.left) bus.angle -= bus.turnSpeed * turnDir;
-        if (inputState.right) bus.angle += bus.turnSpeed * turnDir;
+            // Normalizza tra -PI e PI per fare la rotazione più vicina
+            diff = atan2(sin(diff), cos(diff));
+            bus.angle += diff * 0.15; // Velocità di rotazione per il joypad
+
+            // Accelera proporzionalmente alla spinta del dito
+            let targetSpeed = map(distPx, 10, vJoy.maxR, 0, bus.maxSpeed, true);
+            bus.speed = lerp(bus.speed, targetSpeed, 0.2);
+        } else {
+            // Se torna al centro, frena da fermo piuttosto rapidamente
+            if (bus.speed > 0) bus.speed -= bus.friction * 2;
+            if (bus.speed < 0) bus.speed += bus.friction * 2;
+            if (abs(bus.speed) < bus.friction * 2) bus.speed = 0;
+        }
+    } else {
+        // Controlli tastiera stile veicolo
+        if (inputState.up) bus.speed += bus.acceleration;
+        else if (inputState.down) bus.speed -= bus.acceleration;
+        else {
+            if (bus.speed > 0) bus.speed -= bus.friction;
+            if (bus.speed < 0) bus.speed += bus.friction;
+            if (abs(bus.speed) < bus.friction) bus.speed = 0;
+        }
+
+        bus.speed = constrain(bus.speed, -bus.maxSpeed / 2, bus.maxSpeed);
+
+        if (abs(bus.speed) > 0.5) {
+            let turnDir = (bus.speed > 0) ? 1 : -1;
+            if (inputState.left) bus.angle -= bus.turnSpeed * turnDir;
+            if (inputState.right) bus.angle += bus.turnSpeed * turnDir;
+        }
     }
 
     bus.x += cos(bus.angle) * bus.speed;
