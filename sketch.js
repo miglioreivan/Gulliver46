@@ -225,17 +225,13 @@ function updatePhysics() {
         let distPx = sqrt(dx * dx + dy * dy);
 
         if (distPx > 10) {
-            // Se fuori dalla "zona morta", punta l'autobus in quella direzione
+            // Allinea ISTANTANEAMENTE il bus alla traiettoria del joypad (nessun raggio di sterzata)
             let targetAngle = atan2(dy, dx);
-            let diff = targetAngle - bus.angle;
-
-            // Normalizza tra -PI e PI per fare la rotazione più vicina
-            diff = atan2(sin(diff), cos(diff));
-            bus.angle += diff * 0.15; // Velocità di rotazione per il joypad
+            bus.angle = targetAngle;
 
             // Accelera proporzionalmente alla spinta del dito
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, bus.maxSpeed, true);
-            bus.speed = lerp(bus.speed, targetSpeed, 0.2);
+            bus.speed = targetSpeed;
         } else {
             // Se torna al centro, frena da fermo piuttosto rapidamente
             if (bus.speed > 0) bus.speed -= bus.friction * 2;
@@ -272,7 +268,11 @@ function updatePhysics() {
 function checkStationZone() {
     if (bus.x > stationZone.x && bus.x < stationZone.x + stationZone.w &&
         bus.y > stationZone.y && bus.y < stationZone.y + stationZone.h) {
-        if (abs(bus.speed) < 0.5 && waitingPeds.length > 0) {
+
+        // Entra in fase di caricamento se l'autobus si ferma, 
+        // ANCHE se hai stirato tutti i pedoni (waitingPeds.length === 0) 
+        // così il gioco non si blocca irreparabilmente.
+        if (abs(bus.speed) < 0.5) {
             gameState = 'LOADING';
             loadingTimer = 0;
         }
