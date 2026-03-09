@@ -398,7 +398,7 @@ function drawHUD() {
     textAlign(RIGHT, CENTER);
     textSize(14);
     text(`Pros: ${routeStations[currentStationIndex]}`, width - 15, 18);
-    text(`Ultima: ${routeStations[FINAL_CRASH_STATION_INDEX - 1]}`, width - 15, 38);
+    text(`Ultima: Montedago`, width - 15, 38);
 
     if (gameState === 'LOADING') {
         fill(0, 150);
@@ -610,7 +610,7 @@ function handleEndingSequence() {
 
             textSize(32); text("Il 46 è PIENO !!!", width / 2, height / 2 - 140);
             textSize(14);
-            text("Troppi passeggeri! Siete rimasti a piedi.", width / 2, height / 2 - 105);
+            text("Farsela a piedi fino a Montedago non è il massimo.", width / 2, height / 2 - 105);
             text("Gulliver lavora da anni per un trasporto migliore.", width / 2, height / 2 - 85);
 
             let btnW = 260; // Aumentata larghezza per evitare overflow testo
