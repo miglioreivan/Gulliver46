@@ -568,7 +568,7 @@ function handleEndingSequence() {
             fill(0, textOpacity * 0.85); rect(0, 0, width, height);
             fill(255, textOpacity); textAlign(CENTER, CENTER);
 
-            textSize(24); text("Il 46 è esploso.", width / 2, height / 2 - 90);
+            textSize(24); text("Il 46 è PIENO !!!.", width / 2, height / 2 - 90);
             textSize(16); text("Fartela a piedi fino ad Ingegneria non è il massimo.", width / 2, height / 2 - 60);
 
             fill(UI_BUTTON_RED); textSize(36); text("VOTA GULLIVER", width / 2, height / 2 - 10);
