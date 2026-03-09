@@ -35,19 +35,22 @@ let passengers = 0;
 let gameState = 'START';
 
 const routeStations = [
-    "Piazza Cavour - Capolinea",
-    "Via Frediani",
-    "Via Giannelli",
-    "Via Bocconi (Semaforo)",
-    "Cimitero Tavernelle", // L'esplosione avverrà qua all'arrivo
-    "Parcheggio Cimitero",
-    "Via San Giacomo Della Marca",
-    "Parcheggio Via Ranieri",
-    "Liceo Galilei",
-    "Universita' Ingegneria"
+    "Piazza Cavour - Capolinea",     // 0
+    "Via Frediani",                  // 1
+    "Via Giannelli",                 // 2
+    "Via Bocconi (Semaforo)",        // 3
+    "Cimitero Tavernelle",           // 4 (L'esplosione avverrà all'arrivo qua)
+    "Parcheggio Cimitero",           // 5
+    "Via San Giacomo Della Marca",   // 6
+    "Parcheggio Via Ranieri",        // 7
+    "Liceo Galilei",                 // 8
+    "Universita' Ingegneria"         // 9
 ];
 
-// L'indice della fermata finale dove muore il gioco (Cimitero Tavernelle è indice 4)
+// Correzione: L'indice 4 è Cimitero Tavernelle. Il trigger succede AL COMPLETAMENTO della fermata.
+// L'esplosione dovrebbe scattare PRIMA o APPENA DOPO aver finito "Cimitero Tavernelle"
+// La logica attuale dice: if (currentStationIndex >= FINAL_CRASH_STATION_INDEX).
+// Se voglio che esploda non appena carica i passeggeri della fermata 4 (Cimitero), allora FINAL deve essere 4.
 const FINAL_CRASH_STATION_INDEX = 4;
 let currentStationIndex = 0;
 let stationZone;
@@ -334,36 +337,62 @@ function drawBus() {
     translate(bus.x, bus.y);
     rotate(bus.angle);
 
-    let bw = bus.w;
-    let bh = bus.h;
+    let bw = bus.w; // Larghezza
+    let bh = bus.h; // Lunghezza totale
+
+    // Il "davanti" del bus è verso +X in coordinate locali grazie a cos(angle)
 
     noStroke();
+    // Ombra a terra
     fill(0, 50);
     rect(-bh / 2 + 2, -bw / 2 + 4, bh, bw, 4);
 
+    // Corpo Principale Rosso
     fill(COLOR_BUS_BODY);
-    rect(-bh / 2, -bw / 2, bh, bw, 3);
+    rect(-bh / 2, -bw / 2, bh, bw, 4);
 
+    // Striscia Bianca Distintiva Frontale (per far capire dov'è il muso)
+    fill(255);
+    rect(bh / 2 - 12, -bw / 2 + 1, 6, bw - 2);
+
+    // Tetto Centrale (Zaino Condizionatore)
     fill(COLOR_BUS_HEAD);
-    rect(-bh / 2 + 5, -bw / 2 + 3, bh - 10, bw - 6, 2);
+    rect(-bh / 2 + 8, -bw / 2 + 3, bh - 24, bw - 6, 2);
 
+    // Parabrezza Frontale (Vetro grande azzurro sul lato destro/davanti locale)
     fill(200, 240, 255);
-    rect(bh / 2 - 8, -bw / 2 + 2, 6, bw - 4);
-    rect(-bh / 2 + 2, -bw / 2 + 2, 4, bw - 4);
+    rect(bh / 2 - 6, -bw / 2 + 2, 4, bw - 4);
 
+    // Lunotto Posteriore (Vetro piccolo sul retro)
+    fill(100, 150, 200);
+    rect(-bh / 2 + 2, -bw / 2 + 2, 3, bw - 4);
+
+    // Finestrini Laterali
     fill(50);
-    let windowSpace = (bh - 20) / 4;
+    let windowSpace = (bh - 24) / 4; // Spazio accorciato per via del muso
     for (let i = 0; i < 4; i++) {
-        rect(-bh / 2 + 10 + (i * windowSpace), -bw / 2 + 1, windowSpace - 2, 2);
-        rect(-bh / 2 + 10 + (i * windowSpace), bw / 2 - 3, windowSpace - 2, 2);
+        rect(-bh / 2 + 8 + (i * windowSpace), -bw / 2 + 1, windowSpace - 2, 2); // lato Sx
+        rect(-bh / 2 + 8 + (i * windowSpace), bw / 2 - 3, windowSpace - 2, 2); // lato Dx
     }
 
+    // Fari Posteriori (Rossi)
+    fill(150, 0, 0); // Spenti
     if (inputState.down && bus.speed > 0) {
-        fill(255, 0, 0);
-        rect(-bh / 2 - 1, -bw / 2 + 2, 2, 4);
-        rect(-bh / 2 - 1, bw / 2 - 6, 2, 4);
+        fill(255, 0, 0); // Accesi (Frenata)
     }
+    rect(-bh / 2 - 1, -bw / 2 + 2, 3, 5); // Faretto post Sx
+    rect(-bh / 2 - 1, bw / 2 - 7, 3, 5);  // Faretto post Dx
 
+    // Fari Anteriori (Gialli/Bianchi) per evidenziare il MUSO
+    fill(255, 255, 200);
+    rect(bh / 2 - 2, -bw / 2 + 2, 3, 5); // Faretto ant Sx
+    rect(bh / 2 - 2, bw / 2 - 7, 3, 5);  // Faretto ant Dx
+
+    // Dettaglio cofano
+    fill('#a5281b'); // Rosso scuro
+    rect(bh / 2 - 16, -bw / 2 + 4, 3, bw - 8);
+
+    // "46" sul tetto
     fill(255);
     textAlign(CENTER, CENTER);
     translate(0, 0);
