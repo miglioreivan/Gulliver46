@@ -50,6 +50,7 @@ let stationZone;  // L'area gialla in basso (parcheggio bus)
 let waitingArea;  // Il marciapiede coi pedoni (safe zone contigua)
 let waitingPeds = [];
 let loadingTimer = 0;
+let runOverCount = 0; // Contatore pedoni investiti
 
 // Animazione Finale
 let explosionTimer = 0;
@@ -81,6 +82,7 @@ function initGame() {
     bus.speed = 0;
     passengers = 0;
     currentStationIndex = 0;
+    runOverCount = 0;
     explosionTimer = 0;
     particles = [];
     fleeingStudents = [];
@@ -284,12 +286,12 @@ function drawStationMarker() {
     rect(stationZone.x, stationZone.y, stationZone.w, stationZone.h, 5);
     drawingContext.setLineDash([]);
 
-    // Testo Fermata bello grosso sopra il piazzale
+    // Testo Fermata bello grosso sotto tutto il piazzale per evitare sovrapposizioni col bus/cartello
     fill(UI_DARK_BG);
     noStroke();
-    textAlign(CENTER, BOTTOM);
+    textAlign(CENTER, TOP);
     textSize(14);
-    text(routeStations[currentStationIndex], stationZone.x + stationZone.w / 2, waitingArea.y - 5);
+    text(routeStations[currentStationIndex], stationZone.x + stationZone.w / 2, stationZone.y + stationZone.h + 10);
     pop();
 }
 
@@ -337,7 +339,7 @@ function drawModalMessage(title, subtitle, buttonText) {
     textSize(36);
     text(title, width / 2, height / 3 - 10);
 
-    // Sottotitolo Bianco 
+    // Sottotitolo Bianco
     fill(255);
     textSize(18);
     text(subtitle, width / 2, height / 3 + 40);
@@ -362,7 +364,7 @@ function drawStartMenu() {
 }
 
 function drawGameOverMenu() {
-    drawModalMessage("INCIDENTE STRADALE", "Hai strisciato il bus e schiacciato\n" + passengers + " passeggeri!\nRipeti l'esame di guida.", "GIOCA DI NUOVO");
+    drawModalMessage("INCIDENTE STRADALE", `Hai guidato in modo spericolato!\nPasseggeri raccolti: ${passengers}\nPedoni investiti: ${runOverCount}`, "GIOCA DI NUOVO");
 }
 
 let btnBounds = { w: 200, h: 50 }; // Shared button logic size
@@ -402,7 +404,20 @@ class Person {
 }
 
 function drawPedestrians() {
-    for (let p of waitingPeds) p.draw();
+    for (let i = waitingPeds.length - 1; i >= 0; i--) {
+        let p = waitingPeds[i];
+
+        // Controlliamo se l'autobus investe un pedone (con margine di tolleranza)
+        // Usiamo una hitbox arrotondata basata sul centro del bus
+        if (dist(bus.x, bus.y, p.x, p.y) < 20 && abs(bus.speed) > 0.1) {
+            waitingPeds.splice(i, 1);
+            runOverCount++;
+            // Aggiungi un feedback particellare di sangue/impatto opzionale qui
+            continue;
+        }
+
+        p.draw();
+    }
 }
 
 function drawBus() {
@@ -470,11 +485,25 @@ function handleEndingSequence() {
         if (explosionTimer > 120) gameState = 'FINAL_SCREEN';
         if (gameState === 'FINAL_SCREEN') {
             textOpacity = min(textOpacity + 2, 255);
-            fill(0, textOpacity * 0.8); rect(0, 0, width, height);
+            fill(0, textOpacity * 0.85); rect(0, 0, width, height);
             fill(255, textOpacity); textAlign(CENTER, CENTER);
-            textSize(24); text("Il 46 è pieno.", width / 2, height / 2 - 40);
-            textSize(18); text("Fartela a piedi non è il massimo.", width / 2, height / 2 + 10);
-            fill(UI_BUTTON_RED); textSize(36); text("VOTA GULLIVER", width / 2, height / 2 + 70);
+
+            textSize(24); text("Il 46 è esploso.", width / 2, height / 2 - 90);
+            textSize(16); text("Fartela a piedi fino ad Ingegneria non è il massimo.", width / 2, height / 2 - 60);
+
+            fill(UI_BUTTON_RED); textSize(36); text("VOTA GULLIVER", width / 2, height / 2 - 10);
+
+            // Statistiche
+            fill(200); textSize(14);
+            text(`Statistiche Autista:\nPasseggeri Abbandonati: ${passengers}\nPedoni Stirati: ${runOverCount}`, width / 2, height / 2 + 50);
+
+            // Pulsante Gioca Di Nuovo Finale
+            let btnW = 200; let btnH = 50;
+            let btnX = width / 2 - btnW / 2;
+            let btnY = height - 100;
+
+            fill(UI_BUTTON_RED); rect(btnX, btnY, btnW, btnH, 8);
+            fill(255); textSize(20); text("GIOCA DI NUOVO", width / 2, btnY + btnH / 2);
         }
     }
 
@@ -541,17 +570,33 @@ function mousePressed() {
     } else if (gameState === 'GAMEOVER') {
         if (isButtonTapped(mouseX, mouseY)) initGame();
     } else if (gameState === 'FINAL_SCREEN') {
-        window.open('https://gulliver.univpm.it/', '_blank');
+        // Controlla il click sul pulsante "GIOCA DI NUOVO" a fine partita
+        let btnW = 200; let btnH = 50;
+        let btnX = width / 2 - btnW / 2;
+        let btnY = height - 100;
+        if (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH) {
+            initGame();
+        } else {
+            // Altrimenti clicca il link Gulliver
+            window.open('https://gulliver.univpm.it/', '_blank');
+        }
     }
 }
 
-function touchStarted() { // Same as mouse logic for mobile Safari stability
+function touchStarted() {
     if (gameState === 'START') {
         if (isButtonTapped(mouseX, mouseY)) gameState = 'PLAYING';
     } else if (gameState === 'GAMEOVER') {
         if (isButtonTapped(mouseX, mouseY)) initGame();
     } else if (gameState === 'FINAL_SCREEN') {
-        window.open('https://gulliver.univpm.it/', '_blank');
+        let btnW = 200; let btnH = 50;
+        let btnX = width / 2 - btnW / 2;
+        let btnY = height - 100;
+        if (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH) {
+            initGame();
+        } else {
+            window.open('https://gulliver.univpm.it/', '_blank');
+        }
     }
     return false;
 }
