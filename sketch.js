@@ -158,7 +158,7 @@ function draw() {
         drawHUD();
         drawMobileControls();
     } else if (gameState === 'LOADING') {
-        updatePhysics();
+        bus.speed = 0; // Blocca istantaneamente l'inerzia indotta in updatePhysics
         processStationLoading();
 
         drawStationMarker();
@@ -230,8 +230,8 @@ function updatePhysics() {
             bus.angle = targetAngle;
 
             // Accelera proporzionalmente alla spinta del dito
-            // Ridotta la velocità massima al 45% (su telefono era ingiocabile)
-            let touchMaxSpeed = bus.maxSpeed * 0.45;
+            // Ridotta drasticamente la velocità massima al 25% (su telefono era ingiocabile)
+            let touchMaxSpeed = bus.maxSpeed * 0.25;
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
 
             // Fai accelerare in modo leggermente più fluido
@@ -546,6 +546,9 @@ function handleEndingSequence() {
     explosionTimer++;
 
     if (gameState === 'EXPLODING_SHAKE') {
+        // Se esplode assicura che scarichi comunque 60 persone minimall'esplosione
+        if (passengers < 60) passengers = 60;
+
         push(); translate(random(-4, 4), random(-4, 4)); drawBus(); pop();
         if (explosionTimer % 2 === 0) particles.push(new SmokeParticle(bus.x, bus.y));
         if (explosionTimer > 90) {
