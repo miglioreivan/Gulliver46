@@ -26,6 +26,14 @@ let bus = {
 
 let inputState = { up: false, down: false, left: false, right: false };
 
+let vJoy = {
+    active: false,
+    baseX: 0, baseY: 0,
+    stickX: 0, stickY: 0,
+    maxR: 40,
+    touchId: null
+};
+
 // --- Meccanica Fermate ---
 let passengers = 0;
 let gameState = 'START';
@@ -178,22 +186,40 @@ function handleInput() {
     inputState.right = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
 
     if (touches.length > 0) {
-        let tLeft = false, tRight = false, tUp = false, tDown = false;
-        for (let i = 0; i < touches.length; i++) {
-            let tx = touches[i].x; let ty = touches[i].y;
-            if (tx > width / 2) {
-                if (ty > height / 2 && ty < height - 100) tLeft = true;
-                if (ty >= height - 100) tRight = true;
+        if (!vJoy.active) {
+            vJoy.active = true;
+            vJoy.touchId = touches[0].id; // Assign first touch as stick
+            vJoy.baseX = touches[0].x;
+            vJoy.baseY = touches[0].y;
+            vJoy.stickX = touches[0].x;
+            vJoy.stickY = touches[0].y;
+        } else {
+            let found = false;
+            for (let i = 0; i < touches.length; i++) {
+                if (touches[i].id === vJoy.touchId || touches.length === 1) {
+                    found = true;
+                    let dx = touches[i].x - vJoy.baseX;
+                    let dy = touches[i].y - vJoy.baseY;
+                    let distPx = sqrt(dx * dx + dy * dy);
+                    if (distPx > vJoy.maxR) {
+                        dx = (dx / distPx) * vJoy.maxR;
+                        dy = (dy / distPx) * vJoy.maxR;
+                    }
+                    vJoy.stickX = vJoy.baseX + dx;
+                    vJoy.stickY = vJoy.baseY + dy;
+
+                    // Mapping input with a deadzone of roughly 10px
+                    inputState.up = inputState.up || dy < -10;
+                    inputState.down = inputState.down || dy > 10;
+                    inputState.left = inputState.left || dx < -10;
+                    inputState.right = inputState.right || dx > 10;
+                    break;
+                }
             }
-            if (tx <= width / 2) {
-                if (ty > height / 2 && ty < height - 100) tUp = true;
-                if (ty >= height - 100) tDown = true;
-            }
+            if (!found) vJoy.active = false;
         }
-        inputState.up = inputState.up || tUp;
-        inputState.down = inputState.down || tDown;
-        inputState.left = inputState.left || tLeft;
-        inputState.right = inputState.right || tRight;
+    } else {
+        vJoy.active = false;
     }
 }
 
@@ -463,7 +489,20 @@ function drawBus() {
 }
 
 function drawMobileControls() {
-    // Solo visualizzazione
+    if (vJoy.active) {
+        push();
+        // Base outer circle
+        fill(255, 30);
+        stroke(255, 80);
+        strokeWeight(2);
+        ellipse(vJoy.baseX, vJoy.baseY, vJoy.maxR * 2 + 20);
+
+        // Inner thumb stick circle
+        fill(255, 100);
+        noStroke();
+        ellipse(vJoy.stickX, vJoy.stickY, vJoy.maxR);
+        pop();
+    }
 }
 
 
