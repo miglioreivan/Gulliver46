@@ -230,8 +230,8 @@ function updatePhysics() {
             bus.angle = targetAngle;
 
             // Accelera proporzionalmente alla spinta del dito
-            // Ridotta drasticamente la velocità massima al 25% (su telefono era ingiocabile)
-            let touchMaxSpeed = bus.maxSpeed * 0.25;
+            // Aumentata un pochino la velocità massima al 35% per trovare il giusto compromesso
+            let touchMaxSpeed = bus.maxSpeed * 0.35;
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
 
             // Fai accelerare in modo leggermente più fluido
@@ -378,7 +378,7 @@ function drawHUD() {
     textAlign(RIGHT, CENTER);
     textSize(14);
     text(`Pros: ${routeStations[currentStationIndex]}`, width - 15, 18);
-    text(`Ultima: ${routeStations[FINAL_CRASH_STATION_INDEX]}`, width - 15, 38);
+    text(`Ultima: ${routeStations[FINAL_CRASH_STATION_INDEX - 1]}`, width - 15, 38);
 
     if (gameState === 'LOADING') {
         fill(0, 150);
