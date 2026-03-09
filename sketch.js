@@ -112,6 +112,10 @@ function initGame() {
     currentStationIndex = 0;
     runOverCount = 0;
     isTutorialMode = false;
+    bus.acceleration = 0.1; // Ripristina accelerazione (poteva essere 0 dopo LOADING)
+    vJoy.active = false;    // Reset joystick
+    inputState = { up: false, down: false, left: false, right: false }; // Reset tasti
+    lastPedestrianCount = 0; // Reset contatore pedoni per spawnStationGroup
     explosionTimer = 0;
     particles = [];
     fleeingStudents = [];
