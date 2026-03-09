@@ -230,8 +230,12 @@ function updatePhysics() {
             bus.angle = targetAngle;
 
             // Accelera proporzionalmente alla spinta del dito
-            let targetSpeed = map(distPx, 10, vJoy.maxR, 0, bus.maxSpeed, true);
-            bus.speed = targetSpeed;
+            // Ridotta la velocità massima al 45% (su telefono era ingiocabile)
+            let touchMaxSpeed = bus.maxSpeed * 0.45;
+            let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
+
+            // Fai accelerare in modo leggermente più fluido
+            bus.speed = lerp(bus.speed, targetSpeed, 0.15);
         } else {
             // Se torna al centro, frena da fermo piuttosto rapidamente
             if (bus.speed > 0) bus.speed -= bus.friction * 2;
