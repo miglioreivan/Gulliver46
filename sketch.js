@@ -235,7 +235,7 @@ function updatePhysics() {
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
 
             // Fai accelerare in modo leggermente più fluido
-            bus.speed = lerp(bus.speed, targetSpeed, 0.15);
+            bus.speed = lerp(bus.speed, targetSpeed, 0.08);
         } else {
             // Se torna al centro, frena da fermo piuttosto rapidamente
             if (bus.speed > 0) bus.speed -= bus.friction * 2;
