@@ -225,7 +225,10 @@ function checkStationZone() {
 }
 
 function processStationLoading() {
-    bus.speed *= 0.5;
+    // Congela istantaneamente l'autobus per evitare che scivoli via caricando
+    bus.speed = 0;
+    bus.acceleration = 0;
+
     loadingTimer++;
     if (loadingTimer > 5 && waitingPeds.length > 0) {
         loadingTimer = 0;
@@ -547,30 +550,48 @@ function drawUnivpmBuilding() {
     let uh = univpmBuilding.h;
 
     push();
-    // Ombra Edificio
+    // Ombra ampia
     fill(0, 50);
     noStroke();
-    rect(ux + 5, uy + 10, uw, uh, 5);
+    rect(ux + 8, uy + 12, uw, uh, 5);
 
-    // Blocco Base Edificio Università (Moderno/Ingegneria Style)
-    fill('#7f8c8d'); // Grigio scuro istituzionale
-    rect(ux, uy, uw, uh, 5);
+    // Corpo Principale (Grigio Calcestruzzo stile Brutalista)
+    fill('#95a5a6');
+    rect(ux, uy, uw, uh, 3);
 
-    // Colonne o decorazioni chiare (stile facoltà)
-    fill('#ecf0f1');
-    for (let i = 10; i < uw - 10; i += 25) {
-        rect(ux + i, uy + 10, 10, uh - 10);
+    // Ala laterale sinistra (Profondità)
+    fill('#7f8c8d');
+    rect(ux - 20, uy + 20, 20, uh - 20, 2);
+
+    // Finestroni grandi orizzontali (Stile aule Ingegneria)
+    fill('#34495e');
+    for (let y = uy + 30; y < uy + uh - 10; y += 20) {
+        rect(ux + 10, y, uw - 20, 10, 1);
     }
 
-    // Tetto/Intestazione 
-    fill('#2c3e50'); // Blu scuro
-    rect(ux, uy - 15, uw, 25, 3);
+    // Tetto/Intestazione Spessa
+    fill('#2c3e50'); // Blu scuro istituzionale
+    rect(ux - 5, uy - 20, uw + 10, 35, 4);
 
-    // Scritta UNIVPM sul Tetto
+    // Striscia Arancione/Rossa Decorativa (Stile Univpm)
+    fill('#e67e22');
+    rect(ux - 5, uy + 15, uw + 10, 4);
+
+    // Scritta UNIVPM INGEGNERIA sul Tetto
     fill(255);
     textAlign(CENTER, CENTER);
-    textSize(16);
-    text("UNIVPM", ux + uw / 2, uy - 3);
+    textSize(18);
+    text("UNIVPM", ux + uw / 2, uy - 10);
+    textSize(10);
+    fill('#bdc3c7');
+    text("INGEGNERIA", ux + uw / 2, uy + 5);
+
+    // Ingresso Principale (Porte a Vetri)
+    fill('#2980b9');
+    rect(ux + uw / 2 - 15, uy + uh - 20, 30, 20, 2);
+    fill(255, 200);
+    rect(ux + uw / 2 - 13, uy + uh - 18, 12, 18);
+    rect(ux + uw / 2 + 1, uy + uh - 18, 12, 18);
 
     pop();
 }
