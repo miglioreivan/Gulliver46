@@ -67,6 +67,19 @@ let fleeingStudents = [];
 let textOpacity = 0;
 let univpmBuilding = { x: 0, y: 0, w: 150, h: 100 };
 
+// UX/UI Polishing Globals
+let menuPeds = [];
+const ironicMessages = [
+    "Patente Sospesa!",
+    "Questo non è un rally!",
+    "Il Rettore non sarà felice...",
+    "Hai scambiato il bus per un go-kart?",
+    "Ripassa il codice della strada!",
+    "Troppa fretta di andare a lezione?",
+    "Ancona non è fatta per questa velocità!"
+];
+let currentIronicMessage = "";
+
 // --- Setup ---
 function setup() {
     canvasW = min(windowWidth * 0.95, 800);
@@ -80,6 +93,12 @@ function setup() {
 
     univpmBuilding.x = width - 180;
     univpmBuilding.y = 50;
+
+    // Inizializza omini per il menù
+    for (let i = 0; i < 15; i++) {
+        menuPeds.push(new Person(random(width), random(height)));
+    }
+
     initGame();
 }
 
@@ -97,6 +116,7 @@ function initGame() {
     textOpacity = 0;
 
     spawnStationGroup();
+    currentIronicMessage = random(ironicMessages);
     gameState = 'START';
 }
 
@@ -392,50 +412,70 @@ function drawHUD() {
 }
 
 // Menu Globale Standardizzato
-function drawModalMessage(title, subtitle, buttonText) {
+function drawModalMessage(title, subtitle, buttonText, showPeds = false) {
     push();
-    // Overlay Scuro
-    fill(0, 200);
+
+    // Sfondo dinamico con omini che camminano (solo se richiesto)
+    if (showPeds) {
+        for (let p of menuPeds) {
+            p.x += cos(p.angle) * 0.5;
+            p.y += sin(p.angle) * 0.5;
+            if (p.x < 0) p.x = width; if (p.x > width) p.x = 0;
+            if (p.y < 0) p.y = height; if (p.y > height) p.y = 0;
+            p.draw();
+        }
+    }
+
+    // Overlay Scuro Semi-Trasparente
+    fill(0, 180);
     rect(0, 0, width, height);
 
-    // Titolo
+    // Titolo stilizzato
     fill(UI_BUTTON_RED);
     textAlign(CENTER, CENTER);
-    textSize(36);
-    text(title, width / 2, height / 3 - 10);
+    textSize(42); // Più grande per impatto
+    text(title, width / 2, height / 3 - 50);
+
+    // Separatore
+    stroke(UI_BUTTON_RED);
+    strokeWeight(3);
+    line(width / 2 - 40, height / 3 - 10, width / 2 + 40, height / 3 - 10);
+    noStroke();
 
     // Sottotitolo Bianco
     fill(255);
     textSize(18);
     text(subtitle, width / 2, height / 3 + 40);
 
-    // Bottone CTA Centrale
-    let btnW = 200;
-    let btnH = 50;
-    let btnX = width / 2 - btnW / 2;
-    let btnY = height / 2 + 20;
+    // Bottone CTA Centrale con Pulsazione
+    let btnW = 210;
+    let btnH = 55;
+    let pulse = sin(frameCount * 0.1) * 5; // Effetto respiro
+    let btnX = width / 2 - (btnW + pulse) / 2;
+    let btnY = height / 2 + 50;
 
     fill(UI_BUTTON_RED);
-    rect(btnX, btnY, btnW, btnH, 8); // Angoli arrotondati
+    rect(btnX, btnY, btnW + pulse, btnH, 12);
+
     fill(255);
-    textSize(20);
+    textSize(22);
     text(buttonText, width / 2, btnY + btnH / 2);
 
     pop();
 }
 
 function drawStartMenu() {
-    drawModalMessage("GULLIVER 46", "Fermati nel rettangolo giallo della\nfermata per far salire la folla.\nEvita i bordi dello schermo!", "ACCENDI MOTORE");
+    drawModalMessage("GULLIVER 46", "Riuscirai a portare tutti a lezione?\nFermati nelle aree gialle per caricare i passeggeri.\nAttento a non stirare i pedoni!", "ACCENDI MOTORE", true);
 }
 
 function drawGameOverMenu() {
-    drawModalMessage("INCIDENTE STRADALE", `Hai guidato in modo spericolato!\nPasseggeri raccolti: ${passengers}\nPedoni investiti: ${runOverCount}`, "GIOCA DI NUOVO");
+    drawModalMessage(currentIronicMessage, `Passeggeri salvati: ${passengers}\nPedoni stirati: ${runOverCount}\nNon scoraggiarti, Gulliver crede in te!`, "RIPROVA", false);
 }
 
-let btnBounds = { w: 200, h: 50 }; // Shared button logic size
+let btnBounds = { w: 210, h: 55 }; // Shared button logic size
 function isButtonTapped(mx, my) {
     let btnX = width / 2 - btnBounds.w / 2;
-    let btnY = height / 2 + 20;
+    let btnY = height / 2 + 50;
     return (mx > btnX && mx < btnX + btnBounds.w && my > btnY && my < btnY + btnBounds.h);
 }
 
