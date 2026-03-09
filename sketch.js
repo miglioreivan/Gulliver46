@@ -546,8 +546,8 @@ function handleEndingSequence() {
     explosionTimer++;
 
     if (gameState === 'EXPLODING_SHAKE') {
-        // Se esplode assicura che scarichi comunque 60 persone minimall'esplosione
-        if (passengers < 60) passengers = 60;
+        // Se esplode con 0 passeggeri a bordo, forza 60 per l'animazione finale
+        if (passengers === 0) passengers = 60;
 
         push(); translate(random(-4, 4), random(-4, 4)); drawBus(); pop();
         if (explosionTimer % 2 === 0) particles.push(new SmokeParticle(bus.x, bus.y));
