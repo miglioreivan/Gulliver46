@@ -1,0 +1,147 @@
+USER: Ho ricevuto indicazioni molto confuse con una scadenza invece molto precisa sul creare un videogioco.
+Indicazioni: "tipo snake in cui snake è un 46 e prende le persone e poi dice oh no il 46 è pieno
+scopo: campagna elettorale
+il giocatore comanda il 46 quando arriva a Tavernelle è pieno ed esplode, devi fartela a piedi
+esplode la nuvoletta e ci si scrive vota Gulliver"
+Scadenza: 1 settimana
+
+GEMINI: Capisco perfettamente la situazione: benvenuto nel magico mondo delle commissioni creative, dove il brief sembra un sogno febbrile e la scadenza è "per ieri".
+
+Nonostante la confusione, l'idea ha un suo potenziale ironico e virale, perfetto per una campagna studentesca (immagino si parli di Ancona, dato il riferimento al mitico autobus **46** e a **Tavernelle**).
+
+Ecco come possiamo trasformare questo caos in un gioco funzionante in soli 7 giorni, mantenendo la sanità mentale.
+
+---
+
+## 🏗️ La Strategia "Quick & Dirty" (7 giorni)
+
+Per rispettare la scadenza, non scriveremo il codice da zero. Useremo **p5.js** o **Phaser**, librerie JavaScript che permettono di far girare il gioco direttamente nel browser (fondamentale per la condivisione sui social).
+
+### Il Game Design semplificato
+1.  **Lo Snake:** Invece di una linea di pixel, lo "Snake" è l'icona del bus 46. Ogni persona raccolta si accoda dietro il bus, allungandolo.
+2.  **Il Limite:** Impostiamo un contatore (es. 10 persone). Arrivati a 10, il bus cambia colore (diventa rosso/lampeggiante).
+3.  **Il Finale:** Quando raggiungi le coordinate di "Tavernelle" (o dopo il decimo passeggero), il bus si ferma, appare un'animazione di esplosione ("BOOM!") e compare il font con il messaggio: *"Il 46 è pieno. Fartela a piedi non è il massimo. Vota Gulliver."*
+
+---
+
+## 🗓️ Tabella di Marcia: Road to Gulliver
+
+| Giorno | Obiettivo | Azione Pratica |
+| :--- | :--- | :--- |
+| **1** | **Setup & Logica** | Creare uno Snake base dove "la testa" è un rettangolo arancione. |
+| **2** | **Asset Grafici** | Disegnare (o generare) 3 icone: Bus 46, Studente, Nuvoletta "Vota Gulliver". |
+| **3** | **Meccanica "Pieno"** | Aggiungere il contatore passeggeri e il trigger dell'esplosione. |
+| **4** | **Level Design** | Mettere uno sfondo che ricordi vagamente la mappa della zona (o solo scritte come "Facoltà"). |
+| **5** | **UI & Sound** | Aggiungere il tasto "Start", la musica e il font della lista elettorale. |
+| **6** | **Bug Fixing** | Testare che non esploda (nel modo sbagliato) sui telefoni. |
+| **7** | **Lancio** | Caricare su GitHub Pages o itch.io e sparare il link nei gruppi. |
+
+---
+
+## 💡 Consigli per il Successo
+* **Punta sull'ironia:** Il bus deve essere visibilmente scassato. Il messaggio "Oh no, il 46 è pieno" deve essere il momento catartico del gioco.
+* **Audio:** Se riesci, registra qualcuno che dice "Oh no, il 46 è pieno!" con tono rassegnato. È il tocco di classe che lo rende virale.
+* **Call to Action:** Alla fine del gioco, metti un tasto gigante "Scopri il programma" che rimanda al vostro sito o PDF.
+
+### Possiamo iniziare subito?
+Se vuoi, posso scriverti qui sotto una **bozza di codice base in JavaScript (p5.js)** che puoi copiare e incollare in un editor online per avere già lo scheletro del gioco pronto tra 5 minuti.
+
+**Vuoi che procediamo con la bozza del codice o preferisci approfondire come realizzare la grafica dell'esplosione?**
+
+USER: Quindi mi consigli di farlo in JavaScript? Come faccio per caricarlo online senza un sito? GitHub Pages? Io pensavo Unity in OpenGL e caricarlo su ITCH.IO ma il sito in università è oscurato...
+
+GEMINI: Se il sito di **itch.io** è oscurato nella rete universitaria, **GitHub Pages** è la tua ancora di salvezza. È visto come uno strumento "didattico" e difficilmente viene bloccato.
+
+Sconsiglio caldamente Unity (anche con export WebGL) per questa specifica missione, e ti spiego perché:
+
+### 1\. Perché NO a Unity (in questo caso specifico)
+
+  * **Tempi di caricamento:** Un export WebGL di Unity pesa decine di MB. Su una rete universitaria instabile, l'elettore medio chiude la pagina prima che la barra di caricamento arrivi al 20%.
+  * **Compatibilità Mobile:** Unity WebGL su browser mobile (Instagram/Telegram/WhatsApp dove girerà il link) è spesso legnoso o crasha.
+  * **Workflow:** Per uno Snake ironico, Unity è come usare un bazooka per appendere un quadro.
+
+### 2\. Perché SÌ a JavaScript (p5.js) + GitHub Pages
+
+  * **Leggerezza:** Il gioco pesa pochi KB. Si apre istantaneamente.
+  * **Editing al volo:** Se a 2 giorni dalla consegna ti dicono "cambia il testo della nuvoletta", modifichi una riga di codice via browser e in 30 secondi il gioco è aggiornato per tutti.
+  * **GitHub Pages:** È gratis, professionale e il link sarà qualcosa di pulito tipo `tuonome.github.io/gioco-46`.
+
+-----
+
+## 🚀 Come caricarlo online (Senza avere un sito)
+
+Ecco i passaggi per usare GitHub Pages, che bypassa i filtri dell'università:
+
+1.  **Crea un account** su [GitHub](https://github.com).
+2.  **Crea un nuovo "Repository"** chiamato `gioco-46`.
+3.  **Carica i file:** Ti servono solo tre file (che possiamo scrivere insieme):
+      * `index.html` (lo scheletro)
+      * `sketch.js` (il cuore del gioco)
+      * `style.css` (per centrare il gioco nello schermo)
+4.  **Attiva le Pages:** Vai in *Settings* \> *Pages* \> sotto "Branch" seleziona `main` e clicca *Save*.
+5.  **Fatto:** Dopo 1 minuto, il tuo gioco sarà online all'indirizzo che ti darà GitHub.
+
+-----
+
+## 🕹️ Il Codice "Scheletro" (p5.js)
+
+Ecco una base funzionale che puoi testare subito nell'editor online di [p5js.org](https://editor.p5js.org/). Copia e incolla questo codice per vedere il 46 in azione:
+
+```javascript
+let bus;
+let persone = [];
+let passeggeri = 0;
+let limitePieno = 10;
+let giocoFinito = false;
+
+function setup() {
+  createCanvas(400, 600);
+  bus = createVector(width / 2, height - 50);
+}
+
+function draw() {
+  background(220);
+  
+  if (!giocoFinito) {
+    // Disegna il "Bus 46"
+    fill(255, 150, 0); // Arancione bus
+    rect(bus.x, bus.y, 40, 20);
+    fill(0);
+    text("46", bus.x + 10, bus.y + 15);
+
+    // Logica movimento (semplificata per test)
+    if (keyIsDown(LEFT_ARROW)) bus.x -= 3;
+    if (keyIsDown(RIGHT_ARROW)) bus.x += 3;
+    bus.y -= 1; // Il bus sale verso Tavernelle
+
+    // Trigger Esplosione (Esempio a coordinate o passeggeri)
+    if (bus.y < 100 || passeggeri >= limitePieno) {
+      esplosione();
+    }
+  } else {
+    schermataVotaGulliver();
+  }
+}
+
+function esplosione() {
+  giocoFinito = true;
+}
+
+function schermataVotaGulliver() {
+  textAlign(CENTER);
+  textSize(24);
+  text("💥 BOOM!", width/2, height/2 - 50);
+  textSize(18);
+  text("Il 46 è pieno.\nOra te la fai a piedi...", width/2, height/2);
+  fill(0, 102, 153);
+  textSize(30);
+  text("VOTA GULLIVER", width/2, height/2 + 80);
+}
+```
+
+### Il prossimo passo
+
+Per renderlo un vero "Snake", dobbiamo aggiungere la logica della coda (le persone che si attaccano dietro).
+
+**Vuoi che ti aiuti a scrivere la funzione per "allungare" il bus ogni volta che prendi uno studente, o preferisci che ci concentriamo sulla grafica della nuvoletta "Vota Gulliver"?**
+
