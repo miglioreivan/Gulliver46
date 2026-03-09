@@ -568,30 +568,33 @@ function handleEndingSequence() {
             fill(0, textOpacity * 0.85); rect(0, 0, width, height);
             fill(255, textOpacity); textAlign(CENTER, CENTER);
 
-            textSize(24); text("Il 46 è esploso.", width / 2, height / 2 - 130);
+            textSize(32); text("Il 46 è PIENO !!!", width / 2, height / 2 - 140);
             textSize(14);
-            text("Troppi passeggeri! Siete rimasti a piedi.", width / 2, height / 2 - 100);
-            text("Gulliver lavora da anni per un trasporto migliore.", width / 2, height / 2 - 80);
+            text("Troppi passeggeri! Siete rimasti a piedi.", width / 2, height / 2 - 105);
+            text("Gulliver lavora da anni per un trasporto migliore.", width / 2, height / 2 - 85);
+
+            let btnW = 260; // Aumentata larghezza per evitare overflow testo
+            let btnH = 45;
+            let btnX = width / 2 - btnW / 2;
 
             // Tasto 1: Vota Gulliver (Main)
-            let btnW = 220; let btnH = 45;
-            let btnVotaY = height / 2 - 40;
-            fill(UI_BUTTON_RED); rect(width / 2 - btnW / 2, btnVotaY, btnW, btnH, 8);
+            let btnVotaY = height / 2 - 50;
+            fill(UI_BUTTON_RED); rect(btnX, btnVotaY, btnW, btnH, 8);
             fill(255); textSize(24); text("VOTA GULLIVER", width / 2, btnVotaY + btnH / 2);
 
             // Tasto 2: Report Trasporti (Secondary)
-            let btnReportY = height / 2 + 15;
-            fill('#2980b9'); rect(width / 2 - btnW / 2, btnReportY, btnW, btnH, 8);
+            let btnReportY = height / 2 + 5;
+            fill('#2980b9'); rect(btnX, btnReportY, btnW, btnH, 8);
             fill(255); textSize(16); text("LEGGI IL REPORT TRASPORTI", width / 2, btnReportY + btnH / 2);
 
-            // Statistiche abbassate
+            // Statistiche
             fill(200); textSize(12);
-            text(`Statistiche:\nPasseggeri in ritardo: ${passengers}\nPedoni Stirati: ${runOverCount}`, width / 2, height / 2 + 90);
+            text(`Statistiche:\nPasseggeri in ritardo: ${passengers}\nPedoni Stirati: ${runOverCount}`, width / 2, height / 2 + 85);
 
             // Pulsante Gioca Di Nuovo Finale
-            let btnRipartiY = height - 80;
+            let btnRipartiY = height - 100;
             fill(50); stroke(255); strokeWeight(2);
-            rect(width / 2 - btnW / 2, btnRipartiY, btnW, btnH, 8);
+            rect(btnX, btnRipartiY, btnW, btnH, 8);
             noStroke(); fill(255); textSize(18); text("GIOCA DI NUOVO", width / 2, btnRipartiY + btnH / 2);
         }
     }
@@ -659,12 +662,12 @@ function mousePressed() {
     } else if (gameState === 'GAMEOVER') {
         if (isButtonTapped(mouseX, mouseY)) initGame();
     } else if (gameState === 'FINAL_SCREEN') {
-        let btnW = 220; let btnH = 45;
+        let btnW = 260; let btnH = 45;
         let btnX = width / 2 - btnW / 2;
 
-        let btnVotaY = height / 2 - 40;
-        let btnReportY = height / 2 + 15;
-        let btnRipartiY = height - 80;
+        let btnVotaY = height / 2 - 50;
+        let btnReportY = height / 2 + 5;
+        let btnRipartiY = height - 100;
 
         if (mouseX > btnX && mouseX < btnX + btnW) {
             if (mouseY > btnRipartiY && mouseY < btnRipartiY + btnH) {
