@@ -322,11 +322,16 @@ function drawStationMarker() {
     drawingContext.setLineDash([]);
 
     // Testo Fermata bello grosso sotto tutto il piazzale per evitare sovrapposizioni col bus/cartello
-    fill(UI_DARK_BG);
-    noStroke();
-    textAlign(CENTER, TOP);
+    let stName = routeStations[currentStationIndex];
     textSize(14);
-    text(routeStations[currentStationIndex], stationZone.x + stationZone.w / 2, stationZone.y + stationZone.h + 10);
+    let tw = textWidth(stName);
+    fill(255, 230); // Sfondo bianco
+    noStroke();
+    rect(stationZone.x + stationZone.w / 2 - tw / 2 - 10, stationZone.y + stationZone.h + 8, tw + 20, 20, 5);
+
+    fill(UI_DARK_BG);
+    textAlign(CENTER, TOP);
+    text(stName, stationZone.x + stationZone.w / 2, stationZone.y + stationZone.h + 10);
     pop();
 }
 
@@ -443,11 +448,10 @@ function drawPedestrians() {
         let p = waitingPeds[i];
 
         // Controlliamo se l'autobus investe un pedone (con margine di tolleranza)
-        // Usiamo una hitbox arrotondata basata sul centro del bus
-        if (dist(bus.x, bus.y, p.x, p.y) < 20 && abs(bus.speed) > 0.1) {
+        // Hitbox aumentata a 35 per coprire l'intera lunghezza del bus
+        if (dist(bus.x, bus.y, p.x, p.y) < 35 && abs(bus.speed) > 0.1) {
             waitingPeds.splice(i, 1);
             runOverCount++;
-            // Aggiungi un feedback particellare di sangue/impatto opzionale qui
             continue;
         }
 
@@ -622,29 +626,22 @@ function mousePressed() {
         let btnW = 200; let btnH = 50;
         let btnX = width / 2 - btnW / 2;
         let btnY = height - 100;
+
+        // Area per il tasto VOTA GULLIVER
+        let votaY = height / 2 - 10;
+        let votaX = width / 2;
+
         if (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH) {
             initGame();
-        } else {
-            // Altrimenti clicca il link Gulliver
+        } else if (abs(mouseX - votaX) < 150 && abs(mouseY - votaY) < 30) {
+            // Altrimenti clicca il link Gulliver solo se tocca la scritta
             window.open('https://gulliver.univpm.it/', '_blank');
         }
     }
 }
 
 function touchStarted() {
-    if (gameState === 'START') {
-        if (isButtonTapped(mouseX, mouseY)) gameState = 'PLAYING';
-    } else if (gameState === 'GAMEOVER') {
-        if (isButtonTapped(mouseX, mouseY)) initGame();
-    } else if (gameState === 'FINAL_SCREEN') {
-        let btnW = 200; let btnH = 50;
-        let btnX = width / 2 - btnW / 2;
-        let btnY = height - 100;
-        if (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH) {
-            initGame();
-        } else {
-            window.open('https://gulliver.univpm.it/', '_blank');
-        }
-    }
+    // Return false impedisce comportamenti di default come doppio click/scroll
+    mousePressed();
     return false;
 }
