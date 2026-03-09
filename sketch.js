@@ -237,6 +237,9 @@ function processStationLoading() {
     }
 
     if (waitingPeds.length === 0) {
+        // Sblocca i comandi (riabilita l'accelerazione normale)
+        bus.acceleration = 0.1;
+
         currentStationIndex++;
         if (currentStationIndex >= FINAL_CRASH_STATION_INDEX) {
             // Arrivati al Cimitero Tavernelle! Innesca esplosione.
