@@ -1,15 +1,15 @@
 // --- Impostazioni ---
 let canvasW, canvasH;
 
-const COLOR_ISLAND = '#ecf0f1';
+const COLOR_ISLAND = '#1a1a1c'; // Asfalto quasi nero
 const COLOR_BUS_HEAD = '#e74c3c';
 const COLOR_BUS_BODY = '#c0392b';
-const COLOR_STUDENT_SHIRT = '#3498db';
+const COLOR_STUDENT_SHIRT = '#a93226'; // Rosso spento per le magliette
 const COLOR_STUDENT_PANTS = '#2980b9';
 const COLOR_STUDENT_SKIN = '#f1c40f';
 
 // Colori UI Globale
-const UI_DARK_BG = '#2c3e50';
+const UI_DARK_BG = '#922b21'; // Modificato dal blu a rosso spento per abbinarsi all'esterno
 const UI_BUTTON_RED = '#e74c3c';
 
 // Font (usato bold per visibilità)
@@ -18,7 +18,7 @@ let mainFont = 'Arial';
 // --- Entità: Bus (Fisica) ---
 let bus = {
     x: 0, y: 0,
-    w: 24, h: 64,
+    w: 36, h: 96,
     angle: 0, speed: 0,
     maxSpeed: 5, acceleration: 0.1,
     friction: 0.05, turnSpeed: 0.05
@@ -36,23 +36,20 @@ let vJoy = {
 
 // --- Meccanica Fermate ---
 let passengers = 0;
-let gameState = 'START'; // START, PLAYING, LOADING, GAMEOVER, EXPLODING_SHAKE, etc., TUTORIAL
-let isTutorialMode = false;
+let gameState = 'START'; // START, PLAYING, LOADING, GAMEOVER, EXPLODING_SHAKE, etc.
 
 const routeStations = [
-    "Piazza Cavour - Capol.",
-    "Via Frediani",
-    "Via Giannelli",
-    "Via Bocconi (Sem.)",
+    "Piazza Cavour",
+    "P.Le Libertà",
+    "1^ Via Bocconi",
     "Cimitero Tavernelle",
-    "Parcheggio Cimitero",
-    "S. Giacomo D. Marca",
-    "Parcheggio V. Ranieri",
+    "1^ Via S. Giacomo Della Marca",
+    "Via S. Giacomo D. Marca - Fioraia",
     "Liceo Galilei",
-    "Univ. Ingegneria"
+    "Universita Ingegneria"
 ];
 
-const FINAL_CRASH_STATION_INDEX = 5;
+const FINAL_CRASH_STATION_INDEX = 4;
 let currentStationIndex = 0;
 
 let stationZone;  // L'area gialla in basso (parcheggio bus)
@@ -92,8 +89,7 @@ function setup() {
     let cnv = document.querySelector("canvas");
     cnv.addEventListener("touchstart", function (e) { e.preventDefault() });
 
-    univpmBuilding.x = width - 180;
-    univpmBuilding.y = 50;
+    univpmBuilding = { x: 40, y: 70, w: 100, h: 80 }; // Spostato in alto a sinistra
 
     // Inizializza omini per il menù
     for (let i = 0; i < 15; i++) {
@@ -111,7 +107,6 @@ function initGame() {
     passengers = 0;
     currentStationIndex = 0;
     runOverCount = 0;
-    isTutorialMode = false;
     bus.acceleration = 0.1; // Ripristina accelerazione (poteva essere 0 dopo LOADING)
     vJoy.active = false;    // Reset joystick
     inputState = { up: false, down: false, left: false, right: false }; // Reset tasti
@@ -142,13 +137,21 @@ function spawnStationGroup() {
     let sx, sy;
     let validArea = false;
     // Cerchiamo un'area che possa contenere sia il marciapiede (sopra) che il posteggio (sotto)
-    let areaW = 100; // Larghezza totale zona fermata
-    let areaH = 80;  // Altezza posteggio
-    let sidewalkH = 60; // Altezza marciapiede
+    let areaW = 150; // Larghezza totale zona fermata
+    let areaH = 120;  // Altezza posteggio
+    let sidewalkH = 90; // Altezza marciapiede
+    let totalH = sidewalkH + areaH + 70; // Spazio extra per il nome fermata e il cartello
 
     while (!validArea) {
-        sx = random(50, width - 150);
-        sy = random(150, height - 200);
+        // Garantisce che sx e sy permettano alla fermata completa (nome compreso) di stare in gioco
+        sx = random(30, width - areaW - 30);
+        sy = random(80, height - totalH - 10);
+
+        // Evita l'area del monitor informazioni in alto a destra
+        let monAreaX = width - 200;
+        let monAreaY = 320;
+        if (sx + areaW > monAreaX && sy < monAreaY) continue;
+
         if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) > 200) {
             validArea = true;
         }
@@ -159,7 +162,8 @@ function spawnStationGroup() {
     // L'area di posteggio per il bus sta SOTTO il marciapiede
     stationZone = { x: sx, y: sy + sidewalkH, w: areaW, h: areaH };
 
-    // Spargi i pedoni SOLO sul marciapiede, così il bus parcheggia "davanti" a loro
+    // Verifichiamo che la scritta della fermata non esca a destra/sinistra
+    // Se fosse più larga del marciapiede (sx + areaW), lo spawn ne tiene già conto nel while.
     for (let i = 0; i < numStudents; i++) {
         let px = waitingArea.x + random(10, waitingArea.w - 10);
         let py = waitingArea.y + random(10, waitingArea.h - 10);
@@ -180,8 +184,8 @@ function draw() {
         drawPedestrians();
         drawBus();
         drawHUD();
-        if (isTutorialMode) drawTutorialInstructions();
-    } else if (gameState === 'PLAYING' || isTutorialMode || gameState === 'TUTORIAL') {
+        drawRouteMonitor();
+    } else if (gameState === 'PLAYING') {
         handleInput();
         updatePhysics();
         checkStationZone();
@@ -189,7 +193,7 @@ function draw() {
         drawPedestrians();
         drawBus();
         drawHUD();
-        if (isTutorialMode) drawTutorialInstructions();
+        drawRouteMonitor();
         drawMobileControls();
     } else if (gameState === 'GAMEOVER') {
         drawStationMarker();
@@ -314,22 +318,22 @@ function processStationLoading() {
     bus.acceleration = 0;
     loadingTimer++;
 
-    // Carica i pedoni uno ad uno ogni 5 frame
-    if (loadingTimer > 5 && waitingPeds.length > 0) {
-        loadingTimer = 0;
-        waitingPeds.pop();
-        passengers++;
+    // Carica i pedoni uno ad uno ogni 10 frame (leggermente più lento per vedere l'animazione)
+    if (loadingTimer > 10) {
+        // Cerca il primo pedone che non sta ancora "salendo"
+        for (let p of waitingPeds) {
+            if (!p.isBoarding) {
+                p.isBoarding = true;
+                loadingTimer = 0;
+                break;
+            }
+        }
     }
 
-    // Se tutti i pedoni sono saliti (o non ce n'erano)
+    // Se tutti i pedoni sono saliti (l'array è vuoto perché vengono rimossi dopo l'animazione)
     if (waitingPeds.length === 0) {
         // Aspetta un secondo (60 frame) dopo l'ultimo caricamento per dare feedback
         if (loadingTimer > 60) {
-            if (isTutorialMode) {
-                initGame(); // Torna al menu principale dopo la prima fermata
-                return;
-            }
-
             bus.acceleration = 0.1;
             currentStationIndex++;
             if (currentStationIndex >= routeStations.length || currentStationIndex === FINAL_CRASH_STATION_INDEX) {
@@ -349,58 +353,90 @@ function processStationLoading() {
 
 function drawIslandEnvironment() {
     background(COLOR_ISLAND);
-    noStroke();
-    fill('#dcdde1');
-    for (let i = 0; i < width / 150; i++) {
-        rect(i * 150 + 20, 0, 100, height);
-    }
 }
 
 function drawStationMarker() {
     push();
-    // 1. Marciapiede (dove stanno i pedoni) - Rettangolo grigio solido
+    // 1. Marciapiede (Sidewalk) - Texture a mattonelle
+    push();
     fill('#bdc3c7'); // Grigio chiaro
-    noStroke();
+    stroke('#34495e');
+    strokeWeight(1);
     rect(waitingArea.x, waitingArea.y, waitingArea.w, waitingArea.h, 5);
 
+    // Pattern a mattonelle
+    stroke(0, 40);
+    let tileSize = 15;
+    for (let x = waitingArea.x + tileSize; x < waitingArea.x + waitingArea.w; x += tileSize) {
+        line(x, waitingArea.y, x, waitingArea.y + waitingArea.h);
+    }
+    for (let y = waitingArea.y + tileSize; y < waitingArea.y + waitingArea.h; y += tileSize) {
+        line(waitingArea.x, y, waitingArea.x + waitingArea.w, y);
+    }
+
+    // Bordo (Kerb)
+    fill('#7f8c8d');
+    noStroke();
+    rect(waitingArea.x, waitingArea.y + waitingArea.h - 6, waitingArea.w, 6, 0, 0, 5, 5);
+    pop();
+
     // 2. Cartello Fermata (Palo e targa)
-    let signX = waitingArea.x + 10;
-    let signY = waitingArea.y - 15;
+    let signX = waitingArea.x + 15;
+    let signY = waitingArea.y - 20;
     // Palo
-    fill(50);
-    rect(signX + 2, signY + 15, 3, 20);
+    fill(60);
+    rect(signX - 2, signY + 15, 4, 30);
     // Targa Bus
-    fill('#f39c12'); // Arancione TPL
-    rect(signX - 5, signY, 16, 16, 2);
+    fill(UI_BUTTON_RED); // Colore coerente col tema
+    stroke(255);
+    strokeWeight(1.5);
+    rect(signX - 14, signY, 28, 18, 3);
+    noStroke();
     fill(255);
     textSize(10); textAlign(CENTER, CENTER);
-    text("BUS", signX + 3, signY + 8);
+    text("BUS", signX, signY + 9);
 
-    // 3. Posteggio (dove deve fermarsi il Bus) gialla tratteggiata
-    stroke(255, 204, 0);
+    // 3. Posteggio (dove deve fermarsi il Bus) bianca tratteggiata
+    stroke(255);
     strokeWeight(3);
     drawingContext.setLineDash([8, 8]);
     noFill();
     rect(stationZone.x, stationZone.y, stationZone.w, stationZone.h, 5);
     drawingContext.setLineDash([]);
 
-    // Testo Fermata bello grosso sotto tutto il piazzale per evitare sovrapposizioni col bus/cartello
+    // Scritta a terra "BUS" in giallo
+    noStroke();
+    fill(255, 204, 0, 150); // Giallo stradale leggermente trasparente
+    textSize(28);
+    textAlign(CENTER, CENTER);
+    text("BUS", stationZone.x + stationZone.w / 2, stationZone.y + stationZone.h / 2);
+
+    // Testo Fermata (Design "pillola" moderno sotto la fermata)
     let stName = routeStations[currentStationIndex];
     textSize(14);
     let tw = textWidth(stName);
-    fill(255, 230); // Sfondo bianco
-    noStroke();
-    rect(stationZone.x + stationZone.w / 2 - tw / 2 - 10, stationZone.y + stationZone.h + 8, tw + 20, 20, 5);
+    let pillW = tw + 30; // padding laterale
+    let pillH = 26;
+    let pillX = stationZone.x + stationZone.w / 2 - pillW / 2;
+    let pillY = stationZone.y + stationZone.h + 15; // Distanza dalla linea di parcheggio
 
-    fill(UI_DARK_BG);
-    textAlign(CENTER, TOP);
-    text(stName, stationZone.x + stationZone.w / 2, stationZone.y + stationZone.h + 10);
+    // Sfondo della pillola
+    fill(UI_DARK_BG); // Stile scuro/rosso associato al tema 
+    stroke(255, 100);
+    strokeWeight(1.5);
+    rect(pillX, pillY, pillW, pillH, 13); // Raggio 13 per forma super arrotondata
+
+    // Testo
+    noStroke();
+    fill(255);
+    textAlign(CENTER, CENTER);
+    text(stName, stationZone.x + stationZone.w / 2, pillY + pillH / 2);
     pop();
 }
 
 function drawHUD() {
     push();
-    fill(UI_DARK_BG); // Niente più 150 alpha slavato, grigio/blu solido
+    fill(UI_DARK_BG);
     noStroke();
     rect(0, 0, width, 55);
 
@@ -415,8 +451,7 @@ function drawHUD() {
 
     textAlign(RIGHT, CENTER);
     textSize(14);
-    text(`Pros: ${routeStations[currentStationIndex]}`, width - 15, 18);
-    text(`Ultima: Montedago`, width - 15, 38);
+    text(`Pros: ${routeStations[currentStationIndex]}`, width - 15, 27);
 
     if (gameState === 'LOADING') {
         fill(0, 150);
@@ -425,6 +460,111 @@ function drawHUD() {
         fill(255, 204, 0); // Giallo evidenziatore
         textSize(28);
         text("FERMO E CARICA...", width / 2, height / 2);
+    } else if (gameState === 'PLAYING') {
+        fill(255);
+        textAlign(CENTER, TOP);
+        textSize(16);
+        stroke(0);
+        strokeWeight(3);
+        // Riportato in basso come richiesto
+        text("Sposta l'autobus all'interno della zona tratteggiata", width / 2, height - 30);
+        noStroke();
+    }
+    pop();
+}
+
+function drawRouteMonitor() {
+    push();
+    let pad = 10;
+    let monW = 180;
+    let monH = routeStations.length * 25 + 40;
+    let monX = width - monW - pad;
+    let monY = 65;
+
+    // Sfondo monitor stile Trenitalia
+    fill(245, 245, 250, 220);
+    stroke(200);
+    strokeWeight(1);
+    rect(monX, monY, monW, monH, 5);
+
+    // Intestazione
+    fill(0, 50, 150);
+    noStroke();
+    rect(monX, monY, monW, 25, 5, 5, 0, 0);
+    fill(255);
+    textSize(11);
+    textAlign(CENTER, CENTER);
+    text("INFORMAZIONI VIAGGIO", monX + monW / 2, monY + 12);
+
+    // Linea verticale del percorso
+    let lineX = monX + 20;
+    let startY = monY + 45;
+    let stepY = 25;
+
+    // Se siamo in fase di esplosione finale o dopo l'esplosione
+    let isExploded = (gameState === 'EXPLODING_SHAKE' || gameState === 'EXPLODING_BOOM' || gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN');
+
+    for (let i = 0; i < routeStations.length; i++) {
+        let sy = startY + i * stepY;
+
+        // Colore della linea e dei punti
+        let dotColor = color(100);
+        let textColor = color(50);
+        let isFuture = i > currentStationIndex;
+        let isCurrent = i === currentStationIndex;
+
+        if (isExploded && i >= FINAL_CRASH_STATION_INDEX) {
+            dotColor = color(200, 0, 0);
+            textColor = color(200, 0, 0);
+        } else if (isCurrent) {
+            dotColor = color(0, 50, 200);
+            textColor = color(0, 50, 200);
+        } else if (isFuture) {
+            dotColor = color(150);
+            textColor = color(100);
+        } else {
+            // Passate
+            dotColor = color(180);
+            textColor = color(180);
+        }
+
+        // Disegna la linea di collegamento (tranne l'ultimo)
+        if (i < routeStations.length - 1) {
+            // Linea grigia per segmenti futuri, blu chiaro per passati
+            if (isExploded && i >= FINAL_CRASH_STATION_INDEX - 1) {
+                stroke(200, 0, 0); // Rosso se esploso
+            } else if (i < currentStationIndex) {
+                stroke(0, 100, 255); // Blu per segmenti passati
+            } else {
+                stroke(180); // Grigio per futuri
+            }
+            strokeWeight(3);
+            line(lineX, sy, lineX, sy + stepY);
+        }
+
+        // Punto fermata
+        noStroke();
+        fill(dotColor);
+        ellipse(lineX, sy, 8, 8);
+
+        // Testo fermata
+        textAlign(LEFT, CENTER);
+        textSize(isCurrent ? 10 : 9);
+        if (isCurrent) {
+            // Highlight blu per fermata corrente tipo Trenitalia
+            fill(0, 50, 200, 40);
+            rect(lineX + 10, sy - 10, monW - 40, 20, 2);
+            fill(0, 50, 200);
+            textStyle(BOLD);
+        } else {
+            fill(textColor);
+            textStyle(NORMAL);
+        }
+
+        // Tronca il testo se troppo lungo
+        let name = routeStations[i];
+        if (name.length > 22) name = name.substring(0, 20) + "..";
+        text(name, lineX + 15, sy);
     }
     pop();
 }
@@ -486,43 +626,73 @@ function drawModalMessage(title, subtitle, buttons, showPeds = false) {
 function drawStartMenu() {
     drawModalMessage(
         "GULLIVER 46",
-        "Riuscirai a portare tutti a lezione?\nScegli se iniziare subito o imparare i comandi.",
-        ["ACCENDI MOTORE", "TUTORIAL"],
+        "Riuscirai a portare tutti a lezione?",
+        ["ACCENDI MOTORE"],
         true
     );
 }
 
 function drawGameOverMenu() {
-    drawModalMessage(currentIronicMessage, `Passeggeri salvati: ${passengers}\nPedoni stirati: ${runOverCount}\nNon scoraggiarti, Gulliver crede in te!`, ["RIPROVA"], false);
-}
+    drawIslandEnvironment();
+    drawUnivpmBuilding();
+    drawRouteMonitor();
 
-function drawTutorialInstructions() {
+    let isMobile = width < 500;
+
     push();
-    textAlign(CENTER, CENTER);
-    fill(255, 200);
-    textSize(20);
-    text("MODALITÀ TUTORIAL", width / 2, 50);
+    fill(0, 180);
+    rect(0, 0, width, height);
 
-    textSize(14);
-    if (vJoy.active || touches.length > 0) {
-        text("Usa il JOYSTICK a sinistra per muoverti.\nTira il cursore nella direzione voluta.", width / 2, 100);
-    } else {
-        text("Usa le FRECCE o WASD per guidare.\nPremi ARRIBA per accelerare.", width / 2, 100);
-    }
+    let modalW = isMobile ? width * 0.9 : 400;
+    let modalH = isMobile ? 350 : 320;
+    let mx = width / 2 - modalW / 2;
+    let my = height / 2 - modalH / 2;
+
+    // Pannello Modal
+    fill(UI_DARK_BG);
+    stroke(255, 30);
+    strokeWeight(2);
+    rect(mx, my, modalW, modalH, 15);
+
+    // Titolo (con wrapping per evitare overflow)
+    textAlign(CENTER, TOP);
+    textStyle(BOLD);
+    fill(UI_BUTTON_RED);
+    textSize(isMobile ? 22 : 26);
+    let titlePadding = 20;
+    text(currentIronicMessage, width / 2 - modalW / 2 + titlePadding, my + 30, modalW - titlePadding * 2);
+
+    // Corpo
+    fill(255);
+    textSize(isMobile ? 14 : 16);
+    textLeading(20);
+    textAlign(CENTER, CENTER);
+    let statsText = `Passeggeri arrivati in ritardo: ${passengers}\nPedoni stirati: ${runOverCount}\n\nNon scoraggiarti,\nGulliver crede in te!`;
+    text(statsText, width / 2, my + modalH / 2 + 25);
+
+    // Bottone Riprova
+    let btnW = isMobile ? modalW * 0.7 : 240;
+    let btnH = 50;
+    let bx = width / 2;
+    let by = my + modalH - 70;
 
     fill(UI_BUTTON_RED);
-    text("Raccogli i passeggeri alla fermata gialla.\nIn questa modalità NON puoi investire nessuno!", width / 2, 140);
+    noStroke();
+    rect(bx - btnW / 2, by, btnW, btnH, 10);
+    fill(255);
+    textSize(isMobile ? 18 : 20);
+    text("RIPROVA", bx, by + btnH / 2);
     pop();
 }
 
-let btnBounds = { w: 240, h: 60 }; // Shared button logic size
+let btnBounds = { w: 240, h: 50 }; // Aumentata altezza per touch mobile
+function isButtonAt(mx, my, x, y, w = btnBounds.w, h = btnBounds.h) {
+    return (mx > x - w / 2 && mx < x + w / 2 && my > y && my < y + h);
+}
+
 function isButtonTapped(mx, my, index = 0) {
-    let btnW = btnBounds.w;
-    let btnH = btnBounds.h;
-    let spacing = 15;
-    let btnX = width / 2 - btnW / 2;
-    let btnY = height / 2 + 80 + index * (btnH + spacing);
-    return (mx > btnX && mx < btnX + btnW && my > btnY && my < btnY + btnH);
+    let btnY = height / 2 + 80 + index * (btnBounds.h + 15);
+    return isButtonAt(mx, my, width / 2, btnY);
 }
 
 // ----------------------------------------
@@ -533,22 +703,37 @@ class Person {
     constructor(x, y) {
         this.x = x; this.y = y; this.angle = random(TWO_PI);
         this.offsetTimer = random(100); this.walkCycle = 0;
+        this.shirtColor = [random(50, 255), random(50, 255), random(50, 255)];
+        this.isBoarding = false;
     }
     draw() {
         push(); translate(this.x, this.y); rotate(this.angle);
+
+        // 1. Ombra minuscola per distacco dal terreno
         noStroke();
+        fill(0, 40);
+        ellipse(0, 2, 12, 12);
+
+        // 2. Stroke scuro per contrasto ("Border" intorno alla forma)
+        stroke(0, 100);
+        strokeWeight(1);
+
         let legOffset = sin(this.walkCycle) * 4;
         fill(COLOR_STUDENT_PANTS); // Jeans scuri
         rect(-5, -6 + legOffset, 4, 8, 2);
         rect(-5, 2 - legOffset, 4, 8, 2);
 
-        fill(COLOR_STUDENT_SHIRT); rect(-6, -5, 12, 10, 3);
+        fill(this.shirtColor[0], this.shirtColor[1], this.shirtColor[2]); rect(-6, -5, 12, 10, 3);
         let armOffset = sin(this.walkCycle + PI) * 4;
         fill(COLOR_STUDENT_SKIN);
         rect(0, -7 + armOffset, 4, 3, 1);
         rect(0, 4 - armOffset, 4, 3, 1);
+
+        // Testa e Capelli
         ellipse(0, 0, 8, 8);
-        fill('#8e44ad'); arc(0, 0, 8, 8, -PI / 2, PI / 2);
+        noStroke(); // Non vogliamo lo stroke che taglia nel mezzo dell'arco dei capelli
+        fill('#8e44ad'); arc(0, 0, 8, 10, -PI / 2, PI / 2);
+
         if (this.walkCycle === 0) rotate(sin(frameCount * 0.1 + this.offsetTimer) * 0.2);
         pop();
     }
@@ -558,16 +743,31 @@ function drawPedestrians() {
     for (let i = waitingPeds.length - 1; i >= 0; i--) {
         let p = waitingPeds[i];
 
-        // Controlliamo se l'autobus investe un pedone (con margine di tolleranza)
-        // Hitbox aumentata a 35 per coprire l'intera lunghezza del bus
-        // Collisione se non siamo in tutorial
-        if (!isTutorialMode) {
-            if (dist(bus.x, bus.y, p.x, p.y) < 35 && abs(bus.speed) > 0.1) {
-                p.runOver = true; // Mark as run over
-                runOverCount++;
-                waitingPeds.splice(i, 1); // Remove the pedestrian
-                continue; // Continue to the next pedestrian
+        // Gestione Animazione Salita (Boarding)
+        if (p.isBoarding) {
+            let dx = bus.x - p.x;
+            let dy = bus.y - p.y;
+            let d = sqrt(dx * dx + dy * dy);
+            p.angle = atan2(dy, dx);
+
+            if (d > 5) {
+                p.x += (dx / d) * 2;
+                p.y += (dy / d) * 2;
+                p.walkCycle += 0.3;
+            } else {
+                // Arrivato al bus!
+                passengers++;
+                waitingPeds.splice(i, 1);
+                continue;
             }
+        }
+
+        // Controlliamo se l'autobus investe un pedone (solo se NON sta salendo)
+        if (!p.isBoarding && dist(bus.x, bus.y, p.x, p.y) < 50 && abs(bus.speed) > 0.1) {
+            p.runOver = true; // Mark as run over
+            runOverCount++;
+            waitingPeds.splice(i, 1); // Remove the pedestrian
+            continue; // Continue to the next pedestrian
         }
 
         p.draw();
@@ -579,31 +779,90 @@ function drawBus() {
     translate(bus.x, bus.y);
     rotate(bus.angle);
 
-    let bw = bus.w; let bh = bus.h;
-    noStroke(); fill(0, 50); rect(-bh / 2 + 2, -bw / 2 + 4, bh, bw, 4);
-    fill(COLOR_BUS_BODY); rect(-bh / 2, -bw / 2, bh, bw, 4);
-    fill(255); rect(bh / 2 - 12, -bw / 2 + 1, 6, bw - 2);
-    fill(COLOR_BUS_HEAD); rect(-bh / 2 + 8, -bw / 2 + 3, bh - 24, bw - 6, 2);
-    fill(200, 240, 255); rect(bh / 2 - 6, -bw / 2 + 2, 4, bw - 4);
-    fill(100, 150, 200); rect(-bh / 2 + 2, -bw / 2 + 2, 3, bw - 4);
+    let bw = bus.w;
+    let bh = bus.h;
 
-    fill(50);
-    let windowSpace = (bh - 24) / 4;
-    for (let i = 0; i < 4; i++) {
-        rect(-bh / 2 + 8 + (i * windowSpace), -bw / 2 + 1, windowSpace - 2, 2);
-        rect(-bh / 2 + 8 + (i * windowSpace), bw / 2 - 3, windowSpace - 2, 2);
+    // 1. Ombra proiettata a terra (leggermente traslata)
+    noStroke();
+    fill(0, 40);
+    rect(-bh / 2 + 4, -bw / 2 + 6, bh, bw, 6);
+
+    // 2. Specchietti Retrovisori (nuovi)
+    fill(COLOR_BUS_BODY);
+    stroke(0, 100);
+    strokeWeight(1);
+    // Specchietto destro e sinistro (posizionati davanti verso le ruote)
+    rect(bh / 2 - 10, -bw / 2 - 4, 6, 4, 1);
+    rect(bh / 2 - 10, bw / 2, 6, 4, 1);
+
+    // 3. Corpo Principale scocca
+    noStroke();
+    fill(COLOR_BUS_BODY);
+    rect(-bh / 2, -bw / 2, bh, bw, 5);
+
+    // 4. Dettaglio Tetto (Effetto 3D / Sfumatura)
+    // Parte superiore più chiara per simulare la luce dall'alto
+    fill(255, 30);
+    rect(-bh / 2 + 2, -bw / 2 + 2, bh - 4, bw / 4, 2);
+    // Parte centrale più scura
+    fill(0, 20);
+    rect(-bh / 2 + 2, bw / 4 - bw / 2, bh - 4, bw / 2, 0);
+
+    // 5. Parabrezza e Lunotto
+    // Parabrezza (davanti)
+    fill(180, 230, 255);
+    rect(bh / 2 - 14, -bw / 2 + 2, 10, bw - 4, 2);
+    // Riflesso sul vetro
+    fill(255, 150);
+    rect(bh / 2 - 12, -bw / 2 + 4, 2, bw - 8, 1);
+
+    // Lunotto (dietro)
+    fill(100, 150, 200);
+    rect(-bh / 2 + 2, -bw / 2 + 3, 5, bw - 6, 1);
+
+    // 6. Finestrini laterali (migliorati)
+    fill(40);
+    let winCount = 5;
+    let winSpace = (bh - 25) / winCount;
+    for (let i = 0; i < winCount; i++) {
+        let wx = -bh / 2 + 12 + (i * winSpace);
+        rect(wx, -bw / 2 + 1, winSpace - 3, 2); // Sopra
+        rect(wx, bw / 2 - 3, winSpace - 3, 2);   // Sotto
     }
 
-    fill(150, 0, 0);
-    if (inputState.down && bus.speed > 0) fill(255, 0, 0);
-    rect(-bh / 2 - 1, -bw / 2 + 2, 3, 5); rect(-bh / 2 - 1, bw / 2 - 7, 3, 5);
+    // 7. Luci e Segnaletica
+    // Fari Anteriori (Bianchi/Gialli con leggero bagliore)
+    drawingContext.shadowBlur = 10;
+    drawingContext.shadowColor = 'white';
+    fill(255, 255, 220);
+    rect(bh / 2 - 4, -bw / 2 + 3, 4, 7, 1);
+    rect(bh / 2 - 4, bw / 2 - 10, 4, 7, 1);
+    drawingContext.shadowBlur = 0;
 
-    fill(255, 255, 200);
-    rect(bh / 2 - 2, -bw / 2 + 2, 3, 5); rect(bh / 2 - 2, bw / 2 - 7, 3, 5);
-    fill('#a5281b'); rect(bh / 2 - 16, -bw / 2 + 4, 3, bw - 8);
+    // Luci Posteriori (Rosse / Stop)
+    let isBraking = inputState.down && bus.speed > 0;
+    fill(isBraking ? color(255, 0, 0) : color(150, 0, 0));
+    if (isBraking) {
+        drawingContext.shadowBlur = 15;
+        drawingContext.shadowColor = 'red';
+    }
+    rect(-bh / 2 - 2, -bw / 2 + 3, 4, 8, 1);
+    rect(-bh / 2 - 2, bw / 2 - 11, 4, 8, 1);
+    drawingContext.shadowBlur = 0;
 
-    fill(255); textAlign(CENTER, CENTER); translate(0, 0); rotate(PI / 2);
-    textSize(12); text("46", 0, 0);
+    // Indicatore Linea "46" sul retro
+    fill('#a5281b');
+    rect(bh / 2 - 16, -bw / 2 + 4, 2, bw - 8);
+
+    // Numero 46 al centro del tetto
+    fill(255);
+    textAlign(CENTER, CENTER);
+    push();
+    rotate(PI / 2);
+    textSize(18);
+    text("46", 0, 0);
+    pop();
+
     pop();
 }
 
@@ -632,6 +891,7 @@ function drawMobileControls() {
 function handleEndingSequence() {
     drawIslandEnvironment();
     drawUnivpmBuilding();
+    drawRouteMonitor();
 
     explosionTimer++;
 
@@ -654,38 +914,64 @@ function handleEndingSequence() {
         for (let fs of fleeingStudents) { fs.update(); fs.draw(); }
         if (explosionTimer > 120) gameState = 'FINAL_SCREEN';
         if (gameState === 'FINAL_SCREEN') {
+            let isMobile = width < 500;
             textOpacity = min(textOpacity + 2, 255);
-            fill(0, textOpacity * 0.85); rect(0, 0, width, height);
-            fill(255, textOpacity); textAlign(CENTER, CENTER);
 
-            textSize(32); text("Il 46 è PIENO !!!", width / 2, height / 2 - 140);
-            textSize(14);
-            text("Farsela a piedi fino a Montedago non è il massimo.", width / 2, height / 2 - 105);
-            text("Gulliver lavora da anni per un trasporto migliore.", width / 2, height / 2 - 85);
+            // Sfondo oscurato
+            fill(0, textOpacity * 0.9); rect(0, 0, width, height);
 
-            let btnW = 260; // Aumentata larghezza per evitare overflow testo
-            let btnH = 45;
-            let btnX = width / 2 - btnW / 2;
+            push();
+            tint(255, textOpacity);
+            textAlign(CENTER, CENTER);
+
+            // Testo Principale
+            fill(255, textOpacity);
+            textStyle(BOLD);
+            textSize(isMobile ? 26 : 32);
+            text("Il 46 è PIENO !!!", width / 2, height * 0.2);
+
+            // Subtitle
+            textStyle(NORMAL);
+            textSize(isMobile ? 13 : 15);
+            textLeading(22);
+            let subY = height * 0.2 + (isMobile ? 50 : 60);
+            text("Farsela a piedi fino a Montedago\nnon è il massimo.", width / 2, subY);
+            text("Gulliver lavora da anni per un trasporto migliore.", width / 2, subY + (isMobile ? 40 : 45));
+
+            let btnW = isMobile ? min(width * 0.85, 280) : 300;
+            let btnH = 50;
+            let btnX = width / 2;
+            let spacing = isMobile ? 15 : 20;
 
             // Tasto 1: Vota Gulliver (Main)
-            let btnVotaY = height / 2 - 50;
-            fill(UI_BUTTON_RED); rect(btnX, btnVotaY, btnW, btnH, 8);
-            fill(255); textSize(24); text("VOTA GULLIVER", width / 2, btnVotaY + btnH / 2);
+            let btnVotaY = height * 0.45;
+            let cVota = color(UI_BUTTON_RED); cVota.setAlpha(textOpacity);
+            fill(cVota); rect(btnX - btnW / 2, btnVotaY, btnW, btnH, 8);
+            fill(255, textOpacity); textStyle(BOLD); textSize(isMobile ? 20 : 24);
+            text("VOTA GULLIVER", width / 2, btnVotaY + btnH / 2);
 
             // Tasto 2: Report Trasporti (Secondary)
-            let btnReportY = height / 2 + 5;
-            fill('#2980b9'); rect(btnX, btnReportY, btnW, btnH, 8);
-            fill(255); textSize(16); text("LEGGI IL REPORT TRASPORTI", width / 2, btnReportY + btnH / 2);
+            let btnReportY = btnVotaY + btnH + spacing;
+            let cReport = color('#2980b9'); cReport.setAlpha(textOpacity);
+            fill(cReport); rect(btnX - btnW / 2, btnReportY, btnW, btnH, 8);
+            fill(255, textOpacity); textStyle(BOLD); textSize(isMobile ? 14 : 16);
+            text("LEGGI IL REPORT TRASPORTI", width / 2, btnReportY + btnH / 2);
 
             // Statistiche
-            fill(200); textSize(12);
-            text(`Statistiche:\nPasseggeri in ritardo: ${passengers}\nPedoni Stirati: ${runOverCount}`, width / 2, height / 2 + 85);
+            let cStats = color(200); cStats.setAlpha(textOpacity);
+            fill(cStats); textStyle(NORMAL); textSize(isMobile ? 11 : 13);
+            let statsY = btnReportY + btnH + (isMobile ? 25 : 30);
+            text(`Statistiche:\nPasseggeri arrivati in ritardo: ${passengers}\nPedoni stirati: ${runOverCount}`, width / 2, statsY);
 
             // Pulsante Gioca Di Nuovo Finale
-            let btnRipartiY = height - 100;
-            fill(50); stroke(255); strokeWeight(2);
-            rect(btnX, btnRipartiY, btnW, btnH, 8);
-            noStroke(); fill(255); textSize(18); text("GIOCA DI NUOVO", width / 2, btnRipartiY + btnH / 2);
+            let btnRipartiY = height - 80;
+            let cRipBtn = color(50); cRipBtn.setAlpha(textOpacity);
+            fill(cRipBtn);
+            stroke(255, textOpacity * 0.5); strokeWeight(2);
+            rect(btnX - btnW / 2, btnRipartiY, btnW, btnH, 8);
+            noStroke(); fill(255, textOpacity); textStyle(BOLD); textSize(18);
+            text("GIOCA DI NUOVO", width / 2, btnRipartiY + btnH / 2);
+            pop();
         }
     }
 
@@ -702,16 +988,39 @@ function drawUnivpmBuilding() {
     let uh = univpmBuilding.h;
 
     push();
-    fill(0, 50); noStroke(); rect(ux + 8, uy + 12, uw, uh, 5);
-    fill('#95a5a6'); rect(ux, uy, uw, uh, 3);
-    fill('#7f8c8d'); rect(ux - 20, uy + 20, 20, uh - 20, 2);
-    fill('#34495e'); for (let y = uy + 30; y < uy + uh - 10; y += 20) { rect(ux + 10, y, uw - 20, 10, 1); }
-    fill('#2c3e50'); rect(ux - 5, uy - 20, uw + 10, 35, 4);
-    fill('#e67e22'); rect(ux - 5, uy + 15, uw + 10, 4);
-    fill(255); textAlign(CENTER, CENTER); textSize(18); text("UNIVPM", ux + uw / 2, uy - 10);
-    textSize(10); fill('#bdc3c7'); text("INGEGNERIA", ux + uw / 2, uy + 5);
-    fill('#2980b9'); rect(ux + uw / 2 - 15, uy + uh - 20, 30, 20, 2);
-    fill(255, 200); rect(ux + uw / 2 - 13, uy + uh - 18, 12, 18); rect(ux + uw / 2 + 1, uy + uh - 18, 12, 18);
+    // 1. Ombra proiettata
+    fill(0, 40); noStroke();
+    rect(ux + 4, uy + 4, uw, uh, 4);
+
+    // 2. Struttura Principale (Vetro e Acciaio)
+    fill('#2c3e50'); rect(ux, uy, uw, uh, 4); // Blu scuro cianotico
+
+    // 3. Facciata Continua (Vetri verticali)
+    fill('#34495e');
+    let winW = (uw - 25) / 4;
+    for (let i = 0; i < 4; i++) {
+        let wx = ux + 5 + i * (winW + 5);
+        rect(wx, uy + 10, winW, uh - 20, 1);
+        // Riflesso
+        fill(255, 20);
+        rect(wx + 2, uy + 12, winW / 2, uh - 30);
+        fill('#34495e');
+    }
+
+    // 4. Insegna Superiore Integrata
+    fill('#1a1a1c'); rect(ux - 5, uy - 30, uw + 10, 40, 5);
+    stroke('#e67e22'); strokeWeight(2); line(ux - 5, uy + 10, ux + uw + 5, uy + 10);
+    noStroke();
+
+    fill(255); textAlign(CENTER, CENTER); textStyle(BOLD);
+    textSize(16); text("UNIVPM", ux + uw / 2, uy - 18);
+    fill('#bdc3c7'); textSize(8); text("FACOLTÀ DI INGEGNERIA", ux + uw / 2, uy - 5);
+
+    // 5. Ingresso Sottolineato
+    fill('#2980b9'); rect(ux + uw / 2 - 25, uy + uh - 12, 50, 12, 2); // Base ingresso
+    fill('#ecf0f1');
+    rect(ux + uw / 2 - 20, uy + uh - 15, 18, 15, 1);
+    rect(ux + uw / 2 + 2, uy + uh - 15, 18, 15, 1);
     pop();
 }
 
@@ -746,39 +1055,32 @@ class FleeingStudent extends Person {
 // INPUT TRIGGER UNIVERSALI
 // ----------------------------------------
 
-function mousePressed() {
+function mouseClicked() {
     if (gameState === 'START') {
         if (isButtonTapped(mouseX, mouseY, 0)) {
-            isTutorialMode = false;
             gameState = 'PLAYING';
-        } else if (isButtonTapped(mouseX, mouseY, 1)) {
-            isTutorialMode = true;
-            gameState = 'TUTORIAL';
         }
     } else if (gameState === 'GAMEOVER') {
         if (isButtonTapped(mouseX, mouseY, 0)) initGame();
     } else if (gameState === 'FINAL_SCREEN') {
-        let btnW = 260; let btnH = 45;
-        let btnX = width / 2 - btnW / 2;
+        let isMobile = width < 500;
+        let btnW = isMobile ? min(width * 0.85, 280) : 300;
+        let btnH = 50;
+        let btnX = width / 2;
+        let spacing = isMobile ? 15 : 20;
 
-        let btnVotaY = height / 2 - 50;
-        let btnReportY = height / 2 + 5;
-        let btnRipartiY = height - 100;
+        let btnVotaY = height * 0.45;
+        let btnReportY = btnVotaY + btnH + spacing;
+        let btnRipartiY = height - 80;
 
-        if (mouseX > btnX && mouseX < btnX + btnW) {
-            if (mouseY > btnRipartiY && mouseY < btnRipartiY + btnH) {
-                initGame();
-            } else if (mouseY > btnVotaY && mouseY < btnVotaY + btnH) {
-                window.open('https://www.gulliversinistrauniversitaria.it/', '_blank');
-            } else if (mouseY > btnReportY && mouseY < btnReportY + btnH) {
-                window.open('https://ugc.production.linktr.ee/818a15e8-6f08-441d-84f9-d8a20c7a6499_REPORT-QUESTIONARIO-TRASPORTI.pdf', '_blank');
-            }
+        if (isButtonAt(mouseX, mouseY, btnX, btnRipartiY, btnW, btnH)) {
+            initGame();
+        } else if (isButtonAt(mouseX, mouseY, btnX, btnVotaY, btnW, btnH)) {
+            window.open('https://www.gulliversinistrauniversitaria.it/', '_blank');
+        } else if (isButtonAt(mouseX, mouseY, btnX, btnReportY, btnW, btnH)) {
+            window.open('https://ugc.production.linktr.ee/818a15e8-6f08-441d-84f9-d8a20c7a6499_REPORT-QUESTIONARIO-TRASPORTI.pdf', '_blank');
         }
     }
 }
 
-function touchStarted() {
-    // Return false impedisce comportamenti di default come doppio click/scroll
-    mousePressed();
-    return false;
-}
+
