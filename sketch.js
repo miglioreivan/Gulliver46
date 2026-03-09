@@ -2,7 +2,7 @@
 let canvasW, canvasH;
 
 const COLOR_ISLAND = '#ecf0f1';
-const COLOR_ROAD = '#bdc3c7'; // Strada più scura su cui il bus si muove preferibilmente
+const COLOR_ROAD = '#bdc3c7';
 const COLOR_BUS_HEAD = '#e74c3c';
 const COLOR_BUS_BODY = '#c0392b';
 const COLOR_STUDENT_SHIRT = '#3498db';
@@ -13,9 +13,9 @@ const COLOR_STUDENT_SKIN = '#f1c40f';
 let bus = {
     x: 0,
     y: 0,
-    w: 24, // Larghezza (circa 1 "isola" street)
-    h: 64, // Lunghezza (circa 2.5 "isole")
-    angle: 0, // Rotazione attuale
+    w: 24,
+    h: 64,
+    angle: 0,
     speed: 0,
     maxSpeed: 5,
     acceleration: 0.1,
@@ -33,30 +33,33 @@ let inputState = {
 // --- Meccanica Fermate ---
 let passengers = 0;
 let gameState = 'START';
-// 'START', 'PLAYING', 'LOADING', 'GAMEOVER', 'EXPLODING_SHAKE', 'EXPLODING_BOOM', 'WALKING_AWAY', 'FINAL_SCREEN'
 
 const routeStations = [
     "Piazza Cavour - Capolinea",
     "Via Frediani",
     "Via Giannelli",
     "Via Bocconi (Semaforo)",
-    "Cimitero Tavernelle",
+    "Cimitero Tavernelle", // L'esplosione avverrà qua all'arrivo
     "Parcheggio Cimitero",
     "Via San Giacomo Della Marca",
     "Parcheggio Via Ranieri",
     "Liceo Galilei",
     "Universita' Ingegneria"
 ];
+
+// L'indice della fermata finale dove muore il gioco (Cimitero Tavernelle è indice 4)
+const FINAL_CRASH_STATION_INDEX = 4;
 let currentStationIndex = 0;
-let stationZone; // {x, y, w, h}
-let waitingPeds = []; // Persone non ancora salite all'esterno (oggetti Person)
-let loadingTimer = 0; // Timer per far salire le persone una ad una
+let stationZone;
+let waitingPeds = [];
+let loadingTimer = 0;
 
 // Variabili Animazione Finale
 let explosionTimer = 0;
 let particles = [];
 let fleeingStudents = [];
 let textOpacity = 0;
+let univpmBuilding = { x: 0, y: 0, w: 150, h: 100 }; // Coordinate decise in setup
 
 // --- Setup ---
 function setup() {
@@ -64,9 +67,12 @@ function setup() {
     canvasH = min(windowHeight * 0.95, 1200);
     createCanvas(canvasW, canvasH);
 
-    // Per mobile: evita che il touch default muova la pagina
     let cnv = document.querySelector("canvas");
     cnv.addEventListener("touchstart", function (e) { e.preventDefault() });
+
+    // L'edificio si trova in alto a destra
+    univpmBuilding.x = width - 180;
+    univpmBuilding.y = 50;
 
     initGame();
 }
@@ -74,7 +80,7 @@ function setup() {
 function initGame() {
     bus.x = width / 2;
     bus.y = height * 0.8;
-    bus.angle = PI; // Guarda verso l'alto (Nord)
+    bus.angle = PI;
     bus.speed = 0;
 
     passengers = 0;
@@ -90,26 +96,21 @@ function initGame() {
 
 function spawnStationGroup() {
     waitingPeds = [];
-    // Molte più persone rispetto allo snake, scalate per livello
-    let numStudents = 5 + (currentStationIndex * 3);
+    let numStudents = 5 + (currentStationIndex * 5); // Aumentano drasticamente!
 
-    // Posiziona l'area fermata casualmente ma abbastanza lontana dal bus
     let validArea = false;
     let sx, sy;
     while (!validArea) {
         sx = random(50, width - 100);
-        sy = random(100, height - 150);
-        // Non troppo vicino al bus
-        if (dist(sx, sy, bus.x, bus.y) > 150) {
+        sy = random(200, height - 150); // Meno in alto per non scontrarsi col palazzo alla fine
+        if (dist(sx, sy, bus.x, bus.y) > 200) {
             validArea = true;
         }
     }
 
-    // Zona di carico visivamente delineata a terra
     stationZone = { x: sx, y: sy, w: 80, h: 80 };
 
     for (let i = 0; i < numStudents; i++) {
-        // Spargi fisicamente gli omini attorno alla fermata
         let px = sx + random(10, 70);
         let py = sy + random(10, 70);
         waitingPeds.push(new Person(px, py));
@@ -133,8 +134,7 @@ function draw() {
         drawUI();
         drawMobileControls();
     } else if (gameState === 'LOADING') {
-        // Bus fermo che carica
-        updatePhysics(); // Continua a calcolare attrito
+        updatePhysics();
         processStationLoading();
 
         drawStationMarker();
@@ -156,28 +156,24 @@ function draw() {
 // ----------------------------------------
 
 function handleInput() {
-    inputState.up = keyIsDown(UP_ARROW) || keyIsDown(87); // W
-    inputState.down = keyIsDown(DOWN_ARROW) || keyIsDown(83); // S
-    inputState.left = keyIsDown(LEFT_ARROW) || keyIsDown(65); // A
-    inputState.right = keyIsDown(RIGHT_ARROW) || keyIsDown(68); // D
+    inputState.up = keyIsDown(UP_ARROW) || keyIsDown(87);
+    inputState.down = keyIsDown(DOWN_ARROW) || keyIsDown(83);
+    inputState.left = keyIsDown(LEFT_ARROW) || keyIsDown(65);
+    inputState.right = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
 
-    // Gestione Input Touch per Mobile (A zone)
     if (touches.length > 0) {
         let tLeft = false, tRight = false, tUp = false, tDown = false;
         for (let i = 0; i < touches.length; i++) {
             let tx = touches[i].x;
             let ty = touches[i].y;
 
-            // Sterzo (Metà destra dello schermo)
             if (tx > width / 2) {
-                if (ty > height / 2 && ty < height - 100) tLeft = true; // Sterzo sx
-                if (ty >= height - 100) tRight = true; // Sterzo dx
+                if (ty > height / 2 && ty < height - 100) tLeft = true;
+                if (ty >= height - 100) tRight = true;
             }
-
-            // Pedali (Metà sinistra dello schermo)
             if (tx <= width / 2) {
-                if (ty > height / 2 && ty < height - 100) tUp = true; // Acceleratore
-                if (ty >= height - 100) tDown = true; // Freno/Retromarcia
+                if (ty > height / 2 && ty < height - 100) tUp = true;
+                if (ty >= height - 100) tDown = true;
             }
         }
         inputState.up = inputState.up || tUp;
@@ -188,40 +184,33 @@ function handleInput() {
 }
 
 function updatePhysics() {
-    // Accelerazione in avanti e indietro
     if (inputState.up) {
         bus.speed += bus.acceleration;
     } else if (inputState.down) {
         bus.speed -= bus.acceleration;
     } else {
-        // Attrito se non accelero
         if (bus.speed > 0) bus.speed -= bus.friction;
         if (bus.speed < 0) bus.speed += bus.friction;
         if (abs(bus.speed) < bus.friction) bus.speed = 0;
     }
 
-    // Limiti di velocità (più lento in retromarcia)
     bus.speed = constrain(bus.speed, -bus.maxSpeed / 2, bus.maxSpeed);
 
-    // Sterzo dipendente dalla velocità (non si gira da fermi)
     if (abs(bus.speed) > 0.5) {
-        let turnDir = (bus.speed > 0) ? 1 : -1; // Sterzo invertito in retromarcia (realistico)
+        let turnDir = (bus.speed > 0) ? 1 : -1;
         if (inputState.left) bus.angle -= bus.turnSpeed * turnDir;
         if (inputState.right) bus.angle += bus.turnSpeed * turnDir;
     }
 
-    // Calcolo spostamento basato sull'angolo
     bus.x += cos(bus.angle) * bus.speed;
     bus.y += sin(bus.angle) * bus.speed;
 
-    // Bordi mappa
     if (bus.x < 0 || bus.y < 0 || bus.x > width || bus.y > height) {
         gameState = 'GAMEOVER';
     }
 }
 
 function checkStationZone() {
-    // Se il centro del bus è dentro l'area fermata E siamo (quasi) fermi
     if (bus.x > stationZone.x && bus.x < stationZone.x + stationZone.w &&
         bus.y > stationZone.y && bus.y < stationZone.y + stationZone.h) {
 
@@ -233,24 +222,18 @@ function checkStationZone() {
 }
 
 function processStationLoading() {
-    // Mantiene il bus inchiodato o quasi mente carica
     bus.speed *= 0.5;
-
     loadingTimer++;
-    // Ogni 10 frame, una persona sale (sproporzionato per game feel rapido)
     if (loadingTimer > 5 && waitingPeds.length > 0) {
         loadingTimer = 0;
-        // Rimuovi pedone (sale)
         waitingPeds.pop();
         passengers++;
     }
 
-    // Se son saliti tutti, sblocca e vai alla prossima stazione
     if (waitingPeds.length === 0) {
         currentStationIndex++;
-
-        if (currentStationIndex >= routeStations.length - 1) {
-            // Arrivati a Ingegneria/Tavernelle! Finale
+        if (currentStationIndex >= FINAL_CRASH_STATION_INDEX) {
+            // Arrivati al Cimitero Tavernelle! Innesca esplosione.
             gameState = 'EXPLODING_SHAKE';
         } else {
             spawnStationGroup();
@@ -265,62 +248,76 @@ function processStationLoading() {
 
 function drawIslandEnvironment() {
     background(COLOR_ISLAND);
-    // Un po' di estetica "minimale/urban" procedurale
     noStroke();
     fill('#dcdde1');
     for (let i = 0; i < 5; i++) {
-        rect(i * 200, 0, 100, height); // Linee larghe di "strada" o lotti a caso
+        rect(i * 200, 0, 100, height);
     }
 }
 
 function drawStationMarker() {
-    // Area gialla tratteggiata per il carico
     push();
-    stroke(255, 204, 0); // Giallo bus stop
+    stroke(255, 204, 0);
     strokeWeight(3);
     drawingContext.setLineDash([5, 5]);
     noFill();
     rect(stationZone.x, stationZone.y, stationZone.w, stationZone.h, 5);
 
-    // Testo Fermata
     drawingContext.setLineDash([]);
     fill(0);
     noStroke();
     textAlign(CENTER, BOTTOM);
     textSize(14);
     text(routeStations[currentStationIndex], stationZone.x + stationZone.w / 2, stationZone.y - 10);
-
     pop();
 }
 
-// Omini molto carini in vista top-down (2D base ma strutturati con testa e corpo)
+// Omini molto carini in vista top-down con animazione gambe/braccia
 class Person {
     constructor(x, y) {
         this.x = x;
         this.y = y;
         this.angle = random(TWO_PI);
-        this.offsetTimer = random(100); // Per lieve animazione di attesa
+        this.offsetTimer = random(100);
+        this.walkCycle = 0; // Usato per muovere le gambe
     }
+
     draw() {
         push();
         translate(this.x, this.y);
-        // Un po' di animazione (ondeggiano mentre aspettano)
-        rotate(this.angle + sin(frameCount * 0.1 + this.offsetTimer) * 0.2);
+        rotate(this.angle);
 
         noStroke();
-        // Spalle/Corpo
+
+        // Gambe animate (che sfalsano avanti e indietro in base al walkCycle)
+        // Se è fermo (Person normale ciondola poco), se è Fleeing cammina tanto
+        let legOffset = sin(this.walkCycle) * 4;
+        fill(COLOR_STUDENT_PANTS); // Jeans scuri
+        rect(-5, -6 + legOffset, 4, 8, 2); // Gamba Sinistra (in alto locale Y-)
+        rect(-5, 2 - legOffset, 4, 8, 2); // Gamba Destra (in basso locale Y+)
+
+        // Spalle/Maglietta Torso (copre l'attacco delle gambe)
         fill(COLOR_STUDENT_SHIRT);
-        rect(-6, -4, 12, 8, 3);
-        // Braccia
+        rect(-6, -5, 12, 10, 3);
+
+        // Braccia animate opposte alle gambe
+        let armOffset = sin(this.walkCycle + PI) * 4;
         fill(COLOR_STUDENT_SKIN);
-        rect(-8, -2, 3, 4, 1);
-        rect(5, -2, 3, 4, 1);
-        // Testa
+        rect(0, -7 + armOffset, 4, 3, 1); // Braccio Sinistro
+        rect(0, 4 - armOffset, 4, 3, 1);  // Braccio Destro
+
+        // Testa (poggiata sul torso)
         fill(COLOR_STUDENT_SKIN);
         ellipse(0, 0, 8, 8);
-        // Capelli (opzionale)
+
+        // Capelli (opzionale colore random, qui viola fisso per semplicità)
         fill('#8e44ad');
-        arc(0, 0, 8, 8, PI, TWO_PI);
+        arc(0, 0, 8, 8, -PI / 2, PI / 2); // Capelli dietro la testa vista top-down muovendosi verso X+
+
+        // Onde passive se stanno solo aspettando
+        if (this.walkCycle === 0) {
+            rotate(sin(frameCount * 0.1 + this.offsetTimer) * 0.2);
+        }
 
         pop();
     }
@@ -335,57 +332,42 @@ function drawPedestrians() {
 function drawBus() {
     push();
     translate(bus.x, bus.y);
-    rotate(bus.angle); // Applica la fisica dell'angolo in modo reale
+    rotate(bus.angle);
 
-    // Il centro matematico è il centro del bus, per cui disegniamo da -w/2 e -h/2
     let bw = bus.w;
     let bh = bus.h;
 
-    // Ombra del bus per profondità
     noStroke();
-    fill(0, 50); // Nero 50 alpha
+    fill(0, 50);
     rect(-bh / 2 + 2, -bw / 2 + 4, bh, bw, 4);
 
-    // Corpo Principale Rosso
     fill(COLOR_BUS_BODY);
     rect(-bh / 2, -bw / 2, bh, bw, 3);
 
-    // Dettagli Tettonici (La vista è "top-down", quindi vediamo il tetto)
-    fill(COLOR_BUS_HEAD); // Centro tetto più chiaro
+    fill(COLOR_BUS_HEAD);
     rect(-bh / 2 + 5, -bw / 2 + 3, bh - 10, bw - 6, 2);
 
-    // Parabrezza (A destra del modulo locale siccome angle=0 vuol dire andiamo a destra.
-    // Ma se ci muoviamo col coseno, la "faccia" è verso X positivo locale
-    // L'angolo PI iniziale punta il muso su verso Nord per noi se ruotiamo la vista? 
-    // Con cos() angle=0 -> Nord-Est se non mappato diverso.
-    // Standard Math: angle 0 = X+ = Destra.
-    // Quindi FRONT = X+. REAR = X-.
-    fill(200, 240, 255); // Vetro azzurrino
-    rect(bh / 2 - 8, -bw / 2 + 2, 6, bw - 4); // Vetro avanti
-    rect(-bh / 2 + 2, -bw / 2 + 2, 4, bw - 4); // Lunotto posteriore
+    fill(200, 240, 255);
+    rect(bh / 2 - 8, -bw / 2 + 2, 6, bw - 4);
+    rect(-bh / 2 + 2, -bw / 2 + 2, 4, bw - 4);
 
-    // Finestrini Laterali
-    fill(50); // Vetri laterali scuri come la morte universitaria
+    fill(50);
     let windowSpace = (bh - 20) / 4;
     for (let i = 0; i < 4; i++) {
-        // lato sx
         rect(-bh / 2 + 10 + (i * windowSpace), -bw / 2 + 1, windowSpace - 2, 2);
-        // lato dx
         rect(-bh / 2 + 10 + (i * windowSpace), bw / 2 - 3, windowSpace - 2, 2);
     }
 
-    // Indicatori Fari (Si accendono da fermi ai semafori o se freni)
     if (inputState.down && bus.speed > 0) {
-        fill(255, 0, 0); // Fari posteriori accesi = frenata forte
+        fill(255, 0, 0);
         rect(-bh / 2 - 1, -bw / 2 + 2, 2, 4);
         rect(-bh / 2 - 1, bw / 2 - 6, 2, 4);
     }
 
-    // Piccola "M" o "46" sul tetto stilizzato
     fill(255);
     textAlign(CENTER, CENTER);
     translate(0, 0);
-    rotate(PI / 2); // Ruoto il testo rispetto all'asse del bus per leggerlo diritto sui fianchi o no? Meglio tetto piano.
+    rotate(PI / 2);
     textSize(12);
     text("46", 0, 0);
 
@@ -405,9 +387,8 @@ function drawUI() {
     textAlign(RIGHT, CENTER);
     textSize(14);
     text(`Prss: ${routeStations[currentStationIndex]}`, width - 10, 15);
-    text("Dest:\nLiceo Scienze", width - 10, 35);
+    text(`Dest/Fine: ${routeStations[FINAL_CRASH_STATION_INDEX]}`, width - 10, 35);
 
-    // Messaggio se sta caricando
     if (gameState === 'LOADING') {
         textAlign(CENTER, CENTER);
         fill(255, 200, 0);
@@ -417,21 +398,15 @@ function drawUI() {
 }
 
 function drawMobileControls() {
-    // Opzionale: mostra a schermo i quadranti di tap per mobile su dispositivi touch
     if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
         push();
         fill(255, 20);
         stroke(255, 50);
         strokeWeight(1);
 
-        // Joystick o zone (Sterzo Sx/Dx in basso a destra, Accel/Break a sinistra)
-        // Accel
         rect(20, height - 120, 80, 50, 10);
-        // Break
         rect(20, height - 60, 80, 50, 10);
-        // Sterzo Sx
         rect(width - 180, height - 80, 70, 60, 10);
-        // Sterzo Dx
         rect(width - 90, height - 80, 70, 60, 10);
 
         fill(255, 100);
@@ -450,45 +425,43 @@ function drawMobileControls() {
 // ----------------------------------------
 // SEQUENZA FINALE
 // ----------------------------------------
-function handleEndingSequence() {
-    // Mantieni l'ambiente fermo
-    drawIslandEnvironment();
-    drawStationMarker();
 
+function handleEndingSequence() {
+    drawIslandEnvironment();
+
+    // In questa fase finale, mostra l'edificio UNIVPM in modo epico
+    drawUnivpmBuilding();
+
+    // Ridisegna marker precedente per contesto, o omettilo
     explosionTimer++;
 
     if (gameState === 'EXPLODING_SHAKE') {
-        // 1. Il bus vibra violentemente e fa fumo
         let shakeX = random(-4, 4);
         let shakeY = random(-4, 4);
 
         push();
         translate(shakeX, shakeY);
-        drawBus(); // Usa il disegno completo del nuovo bus fisso!
+        drawBus();
         pop();
 
-        // Genera fumo nero/grigio
         if (explosionTimer % 2 === 0) {
             particles.push(new SmokeParticle(bus.x, bus.y));
         }
 
-        if (explosionTimer > 90) { // Dopo 1.5s
+        if (explosionTimer > 90) {
             gameState = 'EXPLODING_BOOM';
             explosionTimer = 0;
 
-            // Spawno i fuggiaschi ovunque dal punto dell'esplosione!
             for (let i = 0; i < passengers; i++) {
                 fleeingStudents.push(new FleeingStudent(bus.x + random(-20, 20), bus.y + random(-20, 20)));
             }
         }
     } else if (gameState === 'EXPLODING_BOOM') {
-        // 2. Esplosione arancione gigante
         let r = explosionTimer * 20;
         fill(255, 100, 0, 255 - explosionTimer * 5);
         noStroke();
         ellipse(bus.x, bus.y, r, r);
 
-        // Nuvola bianca al centro ("fumetto scoppiato")
         fill(255, 255, 255, 200 - explosionTimer * 2);
         ellipse(bus.x, bus.y, r / 2, r / 2);
 
@@ -497,20 +470,17 @@ function handleEndingSequence() {
             explosionTimer = 0;
         }
     } else if (gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN') {
-        // 3. Passeggeri incamminano Nord-Est usando la classe Person modificata per muoversi
         for (let fs of fleeingStudents) {
             fs.update();
             fs.draw();
         }
 
-        if (explosionTimer > 60) {
+        if (explosionTimer > 120) { // Tempo extra per farli camminare prima del testo
             gameState = 'FINAL_SCREEN';
         }
 
-        // 4. Testo finale
         if (gameState === 'FINAL_SCREEN') {
             textOpacity = min(textOpacity + 2, 255);
-
             fill(0, textOpacity * 0.8);
             rect(0, 0, width, height);
 
@@ -525,13 +495,12 @@ function handleEndingSequence() {
             textSize(36);
             text("VOTA GULLIVER", width / 2, height / 2 + 70);
 
-            if (mouseIsPressed && frameCount % 30 == 0) { // Limit click noise
+            if (mouseIsPressed && frameCount % 30 == 0) {
                 window.open('https://gulliver.univpm.it/', '_blank');
             }
         }
     }
 
-    // Fumo 
     for (let i = particles.length - 1; i >= 0; i--) {
         particles[i].update();
         particles[i].show();
@@ -541,12 +510,48 @@ function handleEndingSequence() {
     }
 }
 
+// Disegna un grosso edificio per l'Università
+function drawUnivpmBuilding() {
+    let ux = univpmBuilding.x;
+    let uy = univpmBuilding.y;
+    let uw = univpmBuilding.w;
+    let uh = univpmBuilding.h;
+
+    push();
+    // Ombra Edificio
+    fill(0, 50);
+    noStroke();
+    rect(ux + 5, uy + 10, uw, uh, 5);
+
+    // Blocco Base Edificio Università (Moderno/Ingegneria Style)
+    fill('#7f8c8d'); // Grigio scuro istituzionale
+    rect(ux, uy, uw, uh, 5);
+
+    // Colonne o decorazioni chiare (stile facoltà)
+    fill('#ecf0f1');
+    for (let i = 10; i < uw - 10; i += 25) {
+        rect(ux + i, uy + 10, 10, uh - 10);
+    }
+
+    // Tetto/Intestazione 
+    fill('#2c3e50'); // Blu scuro
+    rect(ux, uy - 15, uw, 25, 3);
+
+    // Scritta UNIVPM sul Tetto
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(16);
+    text("UNIVPM", ux + uw / 2, uy - 3);
+
+    pop();
+}
+
 class SmokeParticle {
     constructor(x, y) {
         this.x = x + random(-30, 30);
         this.y = y + random(-30, 30);
         this.vx = random(-1, 1);
-        this.vy = random(-3, -1); // Sale leggermente nel vento
+        this.vy = random(-3, -1);
         this.alpha = 255;
         this.d = random(10, 40);
     }
@@ -557,34 +562,48 @@ class SmokeParticle {
     }
     show() {
         noStroke();
-        fill(50, 50, 50, this.alpha); // Fumo più nero/denso dal motore in fiamme
+        fill(50, 50, 50, this.alpha);
         ellipse(this.x, this.y, this.d);
     }
 }
 
-// Estendo logicamente Person in una struct per i Fleeing che camminano "via" animati
 class FleeingStudent extends Person {
     constructor(x, y) {
         super(x, y);
-        // Vanno in alto-destra generalmente, con un po' di variazione
-        this.vx = random(0.5, 2);
-        this.vy = random(-2, -0.5);
-        this.angle = atan2(this.vy, this.vx); // Girano il corpo verso dove camminano
-    }
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-    }
-    // Uso lo stesso draw ma si aggiornano xy
-}
+        // Destinazione centro edificio UNIVPM
+        this.targetX = univpmBuilding.x + univpmBuilding.w / 2 + random(-40, 40);
+        this.targetY = univpmBuilding.y + univpmBuilding.h / 2 + random(20, 50);
 
+        // Velocità base casuale
+        this.speed = random(0.5, 2);
+    }
+
+    update() {
+        // Calcola l'angolo per andare diretti verso l'Univpm!
+        let dx = this.targetX - this.x;
+        let dy = this.targetY - this.y;
+        this.angle = atan2(dy, dx);
+
+        // Muoviti solo se non è ancora arrivato al target
+        if (dist(this.x, this.y, this.targetX, this.targetY) > 10) {
+            this.x += cos(this.angle) * this.speed;
+            this.y += sin(this.angle) * this.speed;
+
+            // Anima le gambe e braccia velocemente in base al movimento (camminata)
+            this.walkCycle += this.speed * 0.2;
+        } else {
+            // Fermo vicino all'edificio
+            this.walkCycle = 0;
+        }
+    }
+}
 
 // --- Schermate Base ---
 function drawStartScreen() {
     fill(0, 200); rect(0, 0, width, height);
     fill(255); textAlign(CENTER, CENTER);
     textSize(32); text("SIMULATORE 46", width / 2, height / 3 - 20);
-    textSize(16); text("Fermati col bus (freno S/Giù) sui quadrati gialli\nFai salire la folla finché non sono pieni.\nArriva in Facoltà.", width / 2, height / 3 + 30);
+    textSize(16); text("Fermati col bus (freno S/Giù) sui quadrati gialli\nFai salire la folla finché non sbomba\narrivando a Tavernelle.", width / 2, height / 3 + 30);
     fill(COLOR_BUS_HEAD); rect(width / 2 - 75, height / 2, 150, 50, 10);
     fill(255); textSize(20); text("ACCENDI MOTORE", width / 2, height / 2 + 25);
 }
@@ -593,7 +612,7 @@ function drawGameOverScreen() {
     fill(0, 200); rect(0, 0, width, height);
     fill(COLOR_BUS_HEAD); textAlign(CENTER, CENTER);
     textSize(32); text("INCIDENTE", width / 2, height / 3 - 20);
-    fill(255); textSize(16); text(`Hai schiacciato le teste a ${passengers} passeggeri.\nEvita i bordi del mondo!`, width / 2, height / 3 + 30);
+    fill(255); textSize(16); text(`Hai raccattato ${passengers} passeggeri,\nma ti sei distratto. Occhio ai bordi!`, width / 2, height / 3 + 30);
     fill(100); rect(width / 2 - 75, height / 2 + 100, 150, 40, 5);
     fill(255); textSize(16); text("RICOMINCIA", width / 2, height / 2 + 120);
 
@@ -603,7 +622,6 @@ function drawGameOverScreen() {
 }
 
 function mousePressed() {
-    // Mobile/Start logic fallback robusta (touch copre quasi tutto)
     if (gameState === 'START') {
         let btnY = height / 2;
         if (mouseY > btnY && mouseY < btnY + 50) {
