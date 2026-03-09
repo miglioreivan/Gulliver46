@@ -36,7 +36,7 @@ let vJoy = {
 
 // --- Meccanica Fermate ---
 let passengers = 0;
-let gameState = 'START';
+let gameState = 'START'; // START, PLAYING, LOADING, GAMEOVER, EXPLODING_SHAKE, etc., TUTORIAL
 
 const routeStations = [
     "Piazza Cavour - Capol.",
@@ -167,7 +167,7 @@ function draw() {
 
     if (gameState === 'START') {
         drawStartMenu();
-    } else if (gameState === 'PLAYING') {
+    } else if (gameState === 'PLAYING' || gameState === 'TUTORIAL') {
         handleInput();
         updatePhysics();
         checkStationZone();
@@ -176,6 +176,11 @@ function draw() {
         drawPedestrians();
         drawBus();
         drawHUD();
+
+        if (gameState === 'TUTORIAL') {
+            drawTutorialInstructions();
+        }
+
         drawMobileControls();
     } else if (gameState === 'LOADING') {
         bus.speed = 0; // Blocca istantaneamente l'inerzia indotta in updatePhysics
@@ -308,12 +313,32 @@ function processStationLoading() {
     bus.acceleration = 0;
     loadingTimer++;
     if (loadingTimer > 5 && waitingPeds.length > 0) {
-        loadingTimer = 0;
-        waitingPeds.pop();
-        passengers++;
+        if (loadingTimer > 100) {
+            if (gameState === 'TUTORIAL') {
+                initGame(); // Torna al menu
+                return;
+            }
+            passengers += waitingPeds.length;
+            waitingPeds = [];
+            currentStationIndex++;
+            loadingTimer = 0;
+
+            if (currentStationIndex >= routeStations.length) {
+                gameState = 'EXPLODING_SHAKE';
+            } else if (currentStationIndex === FINAL_CRASH_STATION_INDEX) {
+                gameState = 'EXPLODING_SHAKE';
+            } else {
+                spawnStationGroup();
+                gameState = 'PLAYING';
+            }
+        } else { // Original logic for loading one by one
+            loadingTimer = 0;
+            waitingPeds.pop();
+            passengers++;
+        }
     }
 
-    if (waitingPeds.length === 0) {
+    if (waitingPeds.length === 0 && loadingTimer > 100) { // Added loadingTimer check to ensure tutorial exit happens after full "load"
         bus.acceleration = 0.1;
         currentStationIndex++;
         if (currentStationIndex >= FINAL_CRASH_STATION_INDEX) {
@@ -412,10 +437,9 @@ function drawHUD() {
 }
 
 // Menu Globale Standardizzato
-function drawModalMessage(title, subtitle, buttonText, showPeds = false) {
+function drawModalMessage(title, subtitle, buttons, showPeds = false) {
     push();
 
-    // Sfondo dinamico con omini che camminano (solo se richiesto)
     if (showPeds) {
         for (let p of menuPeds) {
             p.x += cos(p.angle) * 0.5;
@@ -426,57 +450,86 @@ function drawModalMessage(title, subtitle, buttonText, showPeds = false) {
         }
     }
 
-    // Overlay Scuro Semi-Trasparente
     fill(0, 180);
     rect(0, 0, width, height);
 
-    // Titolo stilizzato
     fill(UI_BUTTON_RED);
     textAlign(CENTER, CENTER);
-    textSize(42); // Più grande per impatto
+    textSize(42);
     text(title, width / 2, height / 3 - 50);
 
-    // Separatore
     stroke(UI_BUTTON_RED);
     strokeWeight(3);
     line(width / 2 - 40, height / 3 - 10, width / 2 + 40, height / 3 - 10);
     noStroke();
 
-    // Sottotitolo Bianco
     fill(255);
     textSize(18);
     text(subtitle, width / 2, height / 3 + 40);
 
-    // Bottone CTA Centrale con Pulsazione
-    let btnW = 240; // Aumentata larghezza per padding interno
-    let btnH = 60;  // Aumentata altezza per estetica
-    let pulse = sin(frameCount * 0.1) * 5; // Effetto respiro
-    let btnX = width / 2 - (btnW + pulse) / 2;
-    let btnY = height / 2 + 80; // Aumentato spazio (padding) per evitare sovrapposizione con i testi sopra
+    // Se passiamo un pulsante solo lo convertiamo in array per logica unica
+    if (!Array.isArray(buttons)) buttons = [buttons];
 
-    fill(UI_BUTTON_RED);
-    rect(btnX, btnY, btnW + pulse, btnH, 12);
+    let btnW = 240;
+    let btnH = 60;
+    let spacing = 15;
+    let pulse = sin(frameCount * 0.1) * 3;
 
-    fill(255);
-    textSize(22);
-    text(buttonText, width / 2, btnY + btnH / 2);
+    for (let i = 0; i < buttons.length; i++) {
+        let btnY = height / 2 + 80 + i * (btnH + spacing);
+        let btnX = width / 2 - (btnW + pulse) / 2;
+
+        fill(UI_BUTTON_RED);
+        rect(btnX, btnY, btnW + pulse, btnH, 12);
+
+        fill(255);
+        textSize(22);
+        text(buttons[i], width / 2, btnY + btnH / 2);
+    }
 
     pop();
 }
 
 function drawStartMenu() {
-    drawModalMessage("GULLIVER 46", "Riuscirai a portare tutti a lezione?\nFermati nelle aree gialle per caricare i passeggeri.\nAttento a non stirare i pedoni!", "ACCENDI MOTORE", true);
+    drawModalMessage(
+        "GULLIVER 46",
+        "Riuscirai a portare tutti a lezione?\nScegli se iniziare subito o imparare i comandi.",
+        ["ACCENDI MOTORE", "TUTORIAL"],
+        true
+    );
 }
 
 function drawGameOverMenu() {
-    drawModalMessage(currentIronicMessage, `Passeggeri salvati: ${passengers}\nPedoni stirati: ${runOverCount}\nNon scoraggiarti, Gulliver crede in te!`, "RIPROVA", false);
+    drawModalMessage(currentIronicMessage, `Passeggeri salvati: ${passengers}\nPedoni stirati: ${runOverCount}\nNon scoraggiarti, Gulliver crede in te!`, ["RIPROVA"], false);
+}
+
+function drawTutorialInstructions() {
+    push();
+    textAlign(CENTER, CENTER);
+    fill(255, 200);
+    textSize(20);
+    text("MODALITÀ TUTORIAL", width / 2, 50);
+
+    textSize(14);
+    if (vJoy.active || touches.length > 0) {
+        text("Usa il JOYSTICK a sinistra per muoverti.\nTira il cursore nella direzione voluta.", width / 2, 100);
+    } else {
+        text("Usa le FRECCE o WASD per guidare.\nPremi ARRIBA per accelerare.", width / 2, 100);
+    }
+
+    fill(UI_BUTTON_RED);
+    text("Raccogli i passeggeri alla fermata gialla.\nIn questa modalità NON puoi investire nessuno!", width / 2, 140);
+    pop();
 }
 
 let btnBounds = { w: 240, h: 60 }; // Shared button logic size
-function isButtonTapped(mx, my) {
-    let btnX = width / 2 - btnBounds.w / 2;
-    let btnY = height / 2 + 80;
-    return (mx > btnX && mx < btnX + btnBounds.w && my > btnY && my < btnY + btnBounds.h);
+function isButtonTapped(mx, my, index = 0) {
+    let btnW = btnBounds.w;
+    let btnH = btnBounds.h;
+    let spacing = 15;
+    let btnX = width / 2 - btnW / 2;
+    let btnY = height / 2 + 80 + index * (btnH + spacing);
+    return (mx > btnX && mx < btnX + btnW && my > btnY && my < btnY + btnH);
 }
 
 // ----------------------------------------
@@ -514,10 +567,14 @@ function drawPedestrians() {
 
         // Controlliamo se l'autobus investe un pedone (con margine di tolleranza)
         // Hitbox aumentata a 35 per coprire l'intera lunghezza del bus
-        if (dist(bus.x, bus.y, p.x, p.y) < 35 && abs(bus.speed) > 0.1) {
-            waitingPeds.splice(i, 1);
-            runOverCount++;
-            continue;
+        // Collisione se non siamo in tutorial
+        if (gameState !== 'TUTORIAL') {
+            if (dist(bus.x, bus.y, p.x, p.y) < 35 && abs(bus.speed) > 0.1) {
+                p.runOver = true; // Mark as run over
+                runOverCount++;
+                waitingPeds.splice(i, 1); // Remove the pedestrian
+                continue; // Continue to the next pedestrian
+            }
         }
 
         p.draw();
@@ -698,9 +755,13 @@ class FleeingStudent extends Person {
 
 function mousePressed() {
     if (gameState === 'START') {
-        if (isButtonTapped(mouseX, mouseY)) gameState = 'PLAYING';
+        if (isButtonTapped(mouseX, mouseY, 0)) {
+            gameState = 'PLAYING';
+        } else if (isButtonTapped(mouseX, mouseY, 1)) {
+            gameState = 'TUTORIAL';
+        }
     } else if (gameState === 'GAMEOVER') {
-        if (isButtonTapped(mouseX, mouseY)) initGame();
+        if (isButtonTapped(mouseX, mouseY, 0)) initGame();
     } else if (gameState === 'FINAL_SCREEN') {
         let btnW = 260; let btnH = 45;
         let btnX = width / 2 - btnW / 2;
