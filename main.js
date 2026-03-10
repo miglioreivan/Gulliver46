@@ -144,8 +144,8 @@ const sketch = (p) => {
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
             drawPedestrians();
             drawBus(p, bus, scaleFactor, inputState);
-            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState, waitingPeds.length, currentStopInitialPeds);
-            drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState);
+            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState);
+            drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState, waitingPeds.length, currentStopInitialPeds);
         } else if (gameState === 'PLAYING') {
             handleInput(p, vJoy, inputState);
             updatePhysics(p, bus, vJoy, inputState, p.width, p.height, (gs) => gameState = gs);
@@ -153,8 +153,8 @@ const sketch = (p) => {
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
             drawPedestrians();
             drawBus(p, bus, scaleFactor, inputState);
-            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState, waitingPeds.length, currentStopInitialPeds);
-            drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState);
+            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState);
+            drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState, waitingPeds.length, currentStopInitialPeds);
             drawMobileControls();
         } else if (gameState === 'GAMEOVER') {
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);

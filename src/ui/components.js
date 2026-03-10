@@ -17,56 +17,10 @@ export function drawHUD(p, width, height, passengers, currentStationIndex, gameS
     p.textAlign(p.RIGHT, p.CENTER);
     p.textSize(14);
     p.text(`Pros: ${routeStations[currentStationIndex]}`, width - 15, 27);
-
-    // Don't show the banner for "Cimitero Tavernelle" (index 3)
-    if (gameState === 'LOADING' && currentStationIndex !== 3) {
-        p.push();
-        let isMobile = width < 500;
-        let bannerW = p.min(width * 0.85, 450);
-        let bannerH = isMobile ? 80 : 90;
-        let bx = width / 2 - bannerW / 2;
-        let by = height / 2 - bannerH / 2;
-
-        // Modal background
-        p.fill(0, 220);
-        p.stroke(UI_BUTTON_RED);
-        p.strokeWeight(3);
-        p.rect(bx, by, bannerW, bannerH, 20);
-
-        // Title text
-        p.noStroke();
-        p.textAlign(p.CENTER, p.TOP);
-        p.fill(255);
-        p.textSize(isMobile ? 18 : 22);
-        p.textStyle(p.BOLD);
-        p.text("FERMO E CARICA...", width / 2, by + 15);
-
-        // Progress bar background
-        let barW = bannerW * 0.8;
-        let barH = 12;
-        let barX = width / 2 - barW / 2;
-        let barY = by + (isMobile ? 45 : 55);
-
-        p.fill(40);
-        p.rect(barX, barY, barW, barH, 6);
-
-        // Smooth Progress bar
-        if (initialPedsCount > 0) {
-            let progress = (initialPedsCount - waitingPedsCount) / initialPedsCount;
-            p.fill(UI_BUTTON_RED);
-            p.rect(barX, barY, barW * progress, barH, 6);
-
-            // Highlight glow on progress
-            p.fill(255, 50);
-            p.rect(barX, barY, barW * progress, barH / 2, 6);
-        }
-
-        p.pop();
-    }
     p.pop();
 }
 
-export function drawBottomTicker(p, width, height, currentStationIndex, tickerScrollState, gameState) {
+export function drawBottomTicker(p, width, height, currentStationIndex, tickerScrollState, gameState, waitingPedsCount, initialPedsCount) {
     p.push();
     let isMobile = width < 500;
     let margin = isMobile ? 10 : 20;
@@ -79,6 +33,20 @@ export function drawBottomTicker(p, width, height, currentStationIndex, tickerSc
     p.stroke(255, 40);
     p.strokeWeight(1.5);
     p.rect(barX, barY, barW, barH, 15);
+
+    // Subtle loading progress bar just above the stops
+    if (gameState === 'LOADING' && initialPedsCount > 0 && currentStationIndex !== 3) {
+        let progress = (initialPedsCount - waitingPedsCount) / initialPedsCount;
+        p.noStroke();
+        p.fill(UI_BUTTON_RED);
+        // Draws a 4px line that fills across the top of the ticker
+        p.rect(barX + 10, barY + 4, (barW - 20) * progress, 3, 2);
+        
+        p.textSize(9);
+        p.textAlign(p.LEFT, p.TOP);
+        p.fill(UI_BUTTON_RED);
+        p.text(`${Math.floor(progress * 100)}%`, barX + 12, barY + 10);
+    }
 
     p.fill(255, 220);
     p.textAlign(p.CENTER, p.TOP);
@@ -301,10 +269,19 @@ export function drawTutorialScreen(p, width, height, assets, menuPeds) {
         currentY += 45;
     }
 
-    // Large Bus Stop Section
+    // Bus Stop Section (Height-constrained scaling)
     if (assets.busstop) {
-        let stopImgW = modalW * 0.75; // Even larger
-        let stopImgH = stopImgW * 0.55;
+        let maxH = isMobile ? 120 : 150;
+        let ratio = assets.busstop.width / assets.busstop.height;
+        let stopImgH = maxH;
+        let stopImgW = stopImgH * ratio;
+
+        // Ensure it doesn't exceed width either
+        if (stopImgW > modalW * 0.8) {
+            stopImgW = modalW * 0.8;
+            stopImgH = stopImgW / ratio;
+        }
+
         p.imageMode(p.CENTER);
         p.image(assets.busstop, width / 2, currentY + stopImgH / 2, stopImgW, stopImgH);
         currentY += stopImgH + 10;
