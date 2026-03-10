@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/Gulliver46/' : '/',
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/Gulliver46/' : '/',
   server: {
     port: 3000,
     open: true
