@@ -57,6 +57,8 @@ let waitingArea;  // Il marciapiede coi pedoni (safe zone contigua)
 let waitingPeds = [];
 let loadingTimer = 0;
 let runOverCount = 0; // Contatore pedoni investiti
+let crashStationInitialPeds = 0; // Numero iniziale pedoni alla fermata del crash
+let bloodSplats = []; // Macchie rosse a terra per pedoni investiti
 
 // Animazione Finale
 let explosionTimer = 0;
@@ -111,6 +113,8 @@ function initGame() {
     vJoy.active = false;    // Reset joystick
     inputState = { up: false, down: false, left: false, right: false }; // Reset tasti
     lastPedestrianCount = 0; // Reset contatore pedoni per spawnStationGroup
+    crashStationInitialPeds = 0;
+    bloodSplats = [];
     explosionTimer = 0;
     particles = [];
     fleeingStudents = [];
@@ -124,6 +128,7 @@ function initGame() {
 let lastPedestrianCount = 0; // Nuova variabile globale introdotta per contare lo storico pedoni generati
 function spawnStationGroup() {
     waitingPeds = [];
+    bloodSplats = [];
 
     // Logica incrementale stretta: parte da minimo 7, poi sale TASSATIVAMENTE ad ogni fermata successiva
     let numStudents = 0;
@@ -260,8 +265,8 @@ function updatePhysics() {
             bus.angle = targetAngle;
 
             // Accelera proporzionalmente alla spinta del dito
-            // Incrementata la velocità massima (42%)
-            let touchMaxSpeed = bus.maxSpeed * 0.42;
+            // Velocità massima touch: 50% della maxSpeed
+            let touchMaxSpeed = bus.maxSpeed * 0.5;
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
 
             // Fai accelerare in modo leggermente più fluido
@@ -318,6 +323,12 @@ function processStationLoading() {
     bus.acceleration = 0;
     loadingTimer++;
 
+    // Inizializza il contatore alla prima volta che si carica la fermata PRE-crash
+    // (il loading avviene a index 3; quando finisce, currentStationIndex diventa 4 = FINAL_CRASH)
+    if (currentStationIndex === FINAL_CRASH_STATION_INDEX - 1 && crashStationInitialPeds === 0) {
+        crashStationInitialPeds = waitingPeds.length;
+    }
+
     // Carica i pedoni uno ad uno ogni 10 frame (leggermente più lento per vedere l'animazione)
     if (loadingTimer > 10) {
         // Cerca il primo pedone che non sta ancora "salendo"
@@ -327,6 +338,15 @@ function processStationLoading() {
                 loadingTimer = 0;
                 break;
             }
+        }
+    }
+
+    // --- FERMATA DEL CRASH: esplode quando sale il 50% dei passeggeri ---
+    if (currentStationIndex === FINAL_CRASH_STATION_INDEX - 1 && crashStationInitialPeds > 0) {
+        let boarded = crashStationInitialPeds - waitingPeds.length;
+        if (boarded >= Math.ceil(crashStationInitialPeds * 0.5)) {
+            gameState = 'EXPLODING_SHAKE';
+            return;
         }
     }
 
@@ -739,7 +759,57 @@ class Person {
     }
 }
 
+function drawAngryBubble(x, y) {
+    // Fumetto faccina arrabbiata sopra il pedone
+    push();
+    let bx = x;
+    let by = y - 22;
+    let wobble = sin(frameCount * 0.25 + x) * 2; // oscillazione
+    by += wobble;
+
+    // Sfondo fumetto
+    fill(255, 60, 60, 220);
+    noStroke();
+    ellipse(bx, by, 18, 16);
+    // Codina del fumetto
+    triangle(bx - 3, by + 7, bx + 3, by + 7, bx, by + 13);
+
+    // Faccina arrabbiata
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textStyle(BOLD);
+    textSize(10);
+    noStroke();
+    // Usa "!" ogni 2 frame alternato per effetto lampeggio
+    text(frameCount % 40 < 20 ? "😠" : "!", bx, by);
+    pop();
+}
+
+function drawBloodSplats() {
+    noStroke();
+    for (let s of bloodSplats) {
+        // Blob irregolare: cerchi sovrapposti con seed casuale per forma organica
+        randomSeed(s.seed);
+        let n = floor(random(4, 7));
+        for (let i = 0; i < n; i++) {
+            let ox = random(-s.r * 0.6, s.r * 0.6);
+            let oy = random(-s.r * 0.4, s.r * 0.4);
+            let ew = random(s.r * 0.6, s.r * 1.2);
+            let eh = random(s.r * 0.4, s.r * 0.8);
+            fill(180, 0, 0, s.alpha);
+            ellipse(s.x + ox, s.y + oy, ew, eh);
+        }
+    }
+    randomSeed(); // reset seed
+}
+
 function drawPedestrians() {
+    let isCrashStation = (currentStationIndex === FINAL_CRASH_STATION_INDEX - 1);
+    let crashLoadingStarted = isCrashStation && crashStationInitialPeds > 0;
+
+    // Disegna prima le macchie di sangue a terra
+    drawBloodSplats();
+
     for (let i = waitingPeds.length - 1; i >= 0; i--) {
         let p = waitingPeds[i];
 
@@ -764,13 +834,20 @@ function drawPedestrians() {
 
         // Controlliamo se l'autobus investe un pedone (solo se NON sta salendo)
         if (!p.isBoarding && dist(bus.x, bus.y, p.x, p.y) < 50 && abs(bus.speed) > 0.1) {
-            p.runOver = true; // Mark as run over
+            p.runOver = true;
             runOverCount++;
-            waitingPeds.splice(i, 1); // Remove the pedestrian
-            continue; // Continue to the next pedestrian
+            // Lascia una macchia rossa a terra
+            bloodSplats.push({ x: p.x, y: p.y, r: random(18, 28), alpha: random(160, 210), seed: floor(random(100000)) });
+            waitingPeds.splice(i, 1);
+            continue;
         }
 
         p.draw();
+
+        // Alla fermata del crash, i pedoni in attesa si lamentano
+        if (crashLoadingStarted && !p.isBoarding) {
+            drawAngryBubble(p.x, p.y);
+        }
     }
 }
 
@@ -928,43 +1005,44 @@ function handleEndingSequence() {
             fill(255, textOpacity);
             textStyle(BOLD);
             textSize(isMobile ? 26 : 32);
-            text("Il 46 è PIENO !!!", width / 2, height * 0.2);
+            let titleY = height * 0.15;
+            text("Il 46 è PIENO !!!", width / 2, titleY);
 
             // Subtitle
             textStyle(NORMAL);
-            textSize(isMobile ? 13 : 15);
-            textLeading(22);
-            let subY = height * 0.2 + (isMobile ? 50 : 60);
+            textSize(isMobile ? 12 : 14);
+            textLeading(isMobile ? 18 : 22);
+            let subY = titleY + (isMobile ? 45 : 55);
             text("Farsela a piedi fino a Montedago\nnon è il massimo.", width / 2, subY);
-            text("Gulliver lavora da anni per un trasporto migliore.", width / 2, subY + (isMobile ? 40 : 45));
+            text("Gulliver lavora da anni per un trasporto migliore.", width / 2, subY + (isMobile ? 35 : 45));
 
-            let btnW = isMobile ? min(width * 0.85, 280) : 300;
-            let btnH = 50;
+            let btnW = isMobile ? min(width * 0.85, 280) : 320;
+            let btnH = isMobile ? 45 : 50;
             let btnX = width / 2;
-            let spacing = isMobile ? 15 : 20;
+            let btnSpacing = isMobile ? 12 : 18;
 
             // Tasto 1: Vota Gulliver (Main)
-            let btnVotaY = height * 0.45;
+            let btnVotaY = height * 0.40;
             let cVota = color(UI_BUTTON_RED); cVota.setAlpha(textOpacity);
-            fill(cVota); rect(btnX - btnW / 2, btnVotaY, btnW, btnH, 8);
-            fill(255, textOpacity); textStyle(BOLD); textSize(isMobile ? 20 : 24);
+            fill(cVota); rect(btnX - btnW / 2, btnVotaY, btnW, btnH, 10);
+            fill(255, textOpacity); textStyle(BOLD); textSize(isMobile ? 18 : 22);
             text("VOTA GULLIVER", width / 2, btnVotaY + btnH / 2);
 
             // Tasto 2: Report Trasporti (Secondary)
-            let btnReportY = btnVotaY + btnH + spacing;
+            let btnReportY = btnVotaY + btnH + btnSpacing;
             let cReport = color('#2980b9'); cReport.setAlpha(textOpacity);
-            fill(cReport); rect(btnX - btnW / 2, btnReportY, btnW, btnH, 8);
-            fill(255, textOpacity); textStyle(BOLD); textSize(isMobile ? 14 : 16);
+            fill(cReport); rect(btnX - btnW / 2, btnReportY, btnW, btnH, 10);
+            fill(255, textOpacity); textStyle(BOLD); textSize(isMobile ? 13 : 15);
             text("LEGGI IL REPORT TRASPORTI", width / 2, btnReportY + btnH / 2);
 
             // Statistiche
             let cStats = color(200); cStats.setAlpha(textOpacity);
             fill(cStats); textStyle(NORMAL); textSize(isMobile ? 11 : 13);
-            let statsY = btnReportY + btnH + (isMobile ? 25 : 30);
+            let statsY = btnReportY + btnH + (isMobile ? 40 : 50);
             text(`Statistiche:\nPasseggeri arrivati in ritardo: ${passengers}\nPedoni stirati: ${runOverCount}`, width / 2, statsY);
 
             // Pulsante Gioca Di Nuovo Finale
-            let btnRipartiY = height - 80;
+            let btnRipartiY = height - (isMobile ? 70 : 80);
             let cRipBtn = color(50); cRipBtn.setAlpha(textOpacity);
             fill(cRipBtn);
             stroke(255, textOpacity * 0.5); strokeWeight(2);
@@ -1069,14 +1147,14 @@ function mouseClicked() {
         if (isButtonTapped(mouseX, mouseY, 0)) initGame();
     } else if (gameState === 'FINAL_SCREEN') {
         let isMobile = width < 500;
-        let btnW = isMobile ? min(width * 0.85, 280) : 300;
-        let btnH = 50;
+        let btnW = isMobile ? min(width * 0.85, 280) : 320;
+        let btnH = isMobile ? 45 : 50;
         let btnX = width / 2;
-        let spacing = isMobile ? 15 : 20;
+        let btnSpacing = isMobile ? 12 : 18;
 
-        let btnVotaY = height * 0.45;
-        let btnReportY = btnVotaY + btnH + spacing;
-        let btnRipartiY = height - 80;
+        let btnVotaY = height * 0.40;
+        let btnReportY = btnVotaY + btnH + btnSpacing;
+        let btnRipartiY = height - (isMobile ? 70 : 80);
 
         if (isButtonAt(mouseX, mouseY, btnX, btnRipartiY, btnW, btnH)) {
             initGame();
