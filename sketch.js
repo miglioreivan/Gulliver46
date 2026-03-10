@@ -184,23 +184,28 @@ function spawnStationGroup() {
     let totalH = sidewalkH + areaH + 70; // Spazio extra per il nome fermata e il cartello
 
     let safetyCounter = 0;
-    while (!validArea && safetyCounter < 50) {
+    while (!validArea && safetyCounter < 100) {
         safetyCounter++;
         // Garantisce che sx e sy permettano alla fermata completa (nome compreso) di stare in gioco
-        // Ridotta l'area Y massima per evitare sovrapposizioni con il tabellone in basso
         sx = random(30, width - areaW - 30);
         sy = random(80, height - totalH - 100);
 
-        // Evita l'area del monitor informazioni in alto a destra
+        // 1. Evita l'area del monitor informazioni in alto a destra
         let monAreaX = width - 200;
         let monAreaY = 320;
         if (sx + areaW > monAreaX && sy < monAreaY) continue;
 
-        // Limita il loop se non trova spazio: dopo 50 tentativi accetta la posizione corrente
-        // Aumentata distanza a 300 per evitare sovrapposizioni con il bus
-        if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) > 300 || safetyCounter >= 50) {
-            validArea = true;
-        }
+        // 2. Evita l'area dell'edificio UNIVPM in alto al centro
+        if (sx + areaW > univpmBuilding.x - 20 && sx < univpmBuilding.x + univpmBuilding.w + 20 &&
+            sy < univpmBuilding.y + univpmBuilding.h + 20) continue;
+
+        // 3. Evita sovrapposizione con il bus (distanza di sicurezza)
+        // Se siamo su schermi piccoli (width < 450), abbassiamo la pretesa di distanza da 300 a 150
+        let minBusDist = (width < 450) ? 150 : 300;
+        if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) < minBusDist) continue;
+
+        // Se siamo arrivati qui, la posizione è valida
+        validArea = true;
     }
 
     // Il marciapiede coi pedoni sta SOPRA
@@ -346,9 +351,25 @@ function updatePhysics() {
     // Definiamo il limite inferiore variabile (sopra il tabellone)
     let maxY = height - (width < 500 ? 85 : 105);
 
-    // Game Over se esce dai bordi o tocca il tabellone
-    if (bus.x < 0 || bus.y < 0 || bus.x > width || bus.y > maxY) {
-        gameState = 'GAMEOVER';
+    // --- Controllo Game Over accurato (toccando i bordi) ---
+    // Calcoliamo i 4 angoli del bus ruotato per precisione millimetrica
+    let bh = bus.h / 2;
+    let bw = bus.w / 2;
+    let cosA = cos(bus.angle);
+    let sinA = sin(bus.angle);
+
+    let corners = [
+        { x: bus.x + (-bh) * cosA - (-bw) * sinA, y: bus.y + (-bh) * sinA + (-bw) * cosA },
+        { x: bus.x + (bh) * cosA - (-bw) * sinA, y: bus.y + (bh) * sinA + (-bw) * cosA },
+        { x: bus.x + (bh) * cosA - (bw) * sinA, y: bus.y + (bh) * sinA + (bw) * cosA },
+        { x: bus.x + (-bh) * cosA - (bw) * sinA, y: bus.y + (-bh) * sinA + (bw) * cosA }
+    ];
+
+    for (let c of corners) {
+        if (c.x < 0 || c.x > width || c.y < 0 || c.y > maxY) {
+            gameState = 'GAMEOVER';
+            break;
+        }
     }
 }
 
@@ -735,14 +756,20 @@ function drawGameOverMenu() {
     pop();
 }
 
-let btnBounds = { w: 240, h: 60 }; // Aumentata altezza per touch mobile (coerente con drawModalMessage)
+let btnBounds = { w: 240, h: 60 }; 
 function isButtonAt(mx, my, x, y, w = btnBounds.w, h = btnBounds.h) {
-    return (mx > x - w / 2 && mx < x + w / 2 && my > y && my < y + h);
+    // Aumentiamo l'area di "hit" per il tocco (padding di 15px su ogni lato)
+    let padding = (width < 500) ? 15 : 0;
+    return (mx > x - w / 2 - padding && mx < x + w / 2 + padding && 
+            my > y - padding && my < y + h + padding);
 }
 
 function isButtonTapped(mx, my, index = 0) {
-    let btnY = height / 2 + 80 + index * (btnBounds.h + 15);
-    return isButtonAt(mx, my, width / 2, btnY);
+    // Coordinate pulsanti menu START
+    let spacing = 15;
+    let btnH = 60;
+    let btnY = height / 2 + 80 + index * (btnH + spacing);
+    return isButtonAt(mx, my, width / 2, btnY, 240, btnH);
 }
 
 // ----------------------------------------
@@ -1084,7 +1111,7 @@ function handleEndingSequence() {
             text(`Statistiche:\nPasseggeri arrivati in ritardo: ${passengers}\nPedoni stirati: ${runOverCount}`, width / 2, statsY);
 
             // Pulsante Gioca Di Nuovo Finale
-            let btnRipartiY = height - (isMobile ? 70 : 80);
+            let btnRipartiY = height - (isMobile ? 100 : 80);
             let cRipBtn = color(50); cRipBtn.setAlpha(textOpacity);
             fill(cRipBtn);
             stroke(255, textOpacity * 0.5); strokeWeight(2);
@@ -1175,24 +1202,27 @@ class FleeingStudent extends Person {
 // INPUT TRIGGER UNIVERSALI
 // ----------------------------------------
 
-function touchStarted() {
-    // Su mobile touchStarted è più reattivo. Passiamo le coordinate esatte del tocco.
+function touchStarted(e) {
+    // Impedisce scrolling o zoom durante il gioco
+    if (e && e.preventDefault) e.preventDefault();
+    
+    // Se c'è un tocco valido, agiamo come un click
     if (touches && touches.length > 0) {
-        mouseClicked(touches[0].x, touches[0].y);
-    } else {
-        mouseClicked(mouseX, mouseY);
+        handleUniversalClick(touches[0].x, touches[0].y);
     }
     return false;
 }
 
 function touchEnded() {
-    // Manteniamo per sicurezza ma touchStarted dovrebbe gestire l'input UI
     return false;
 }
 
-function mouseClicked(tx, ty) {
-    let mx = (tx !== undefined) ? tx : mouseX;
-    let my = (ty !== undefined) ? ty : mouseY;
+function mouseClicked() {
+    handleUniversalClick(mouseX, mouseY);
+    return false;
+}
+
+function handleUniversalClick(mx, my) {
     if (gameState === 'START') {
         if (isButtonTapped(mx, my, 0)) {
             gameState = 'PLAYING';
@@ -1218,7 +1248,7 @@ function mouseClicked(tx, ty) {
 
         let btnVotaY = height * 0.40;
         let btnReportY = btnVotaY + btnH + btnSpacing;
-        let btnRipartiY = height - (isMobile ? 70 : 80);
+        let btnRipartiY = height - (isMobile ? 100 : 80);
 
         if (isButtonAt(mx, my, btnX, btnRipartiY, btnW, btnH)) {
             initGame();
