@@ -1055,6 +1055,11 @@ class FleeingStudent extends Person {
 // INPUT TRIGGER UNIVERSALI
 // ----------------------------------------
 
+function touchEnded() {
+    mouseClicked();
+    return false; // Previeni comportamenti default del browser
+}
+
 function mouseClicked() {
     if (gameState === 'START') {
         if (isButtonTapped(mouseX, mouseY, 0)) {
