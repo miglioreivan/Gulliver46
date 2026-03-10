@@ -82,23 +82,32 @@ let currentIronicMessage = "";
 
 // --- Setup ---
 function setup() {
+    pixelDensity(1); // Ottimizza performance su schermi ad alta densità (mobile)
     canvasW = min(windowWidth * 0.95, 800);
     canvasH = min(windowHeight * 0.95, 1200);
-    createCanvas(canvasW, canvasH);
+    let cnv = createCanvas(canvasW, canvasH);
+    cnv.parent('game-container');
+
     textFont(mainFont);
-    textStyle(BOLD); // Font massicci per contrasto
+    textStyle(BOLD);
 
-    let cnv = document.querySelector("canvas");
-    cnv.addEventListener("touchstart", function (e) { e.preventDefault() });
+    // Previene comportamenti default del browser sul canvas
+    cnv.elt.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+    cnv.elt.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
-    univpmBuilding = { x: 40, y: 70, w: 100, h: 80 }; // Spostato in alto a sinistra
+    univpmBuilding = { x: 40, y: 70, w: 100, h: 80 };
 
-    // Inizializza omini per il menù
     for (let i = 0; i < 15; i++) {
         menuPeds.push(new Person(random(width), random(height)));
     }
 
     initGame();
+}
+
+function windowResized() {
+    canvasW = min(windowWidth * 0.95, 800);
+    canvasH = min(windowHeight * 0.95, 1200);
+    resizeCanvas(canvasW, canvasH);
 }
 
 function initGame() {
@@ -708,7 +717,7 @@ function drawGameOverMenu() {
     pop();
 }
 
-let btnBounds = { w: 240, h: 50 }; // Aumentata altezza per touch mobile
+let btnBounds = { w: 240, h: 60 }; // Aumentata altezza per touch mobile (coerente con drawModalMessage)
 function isButtonAt(mx, my, x, y, w = btnBounds.w, h = btnBounds.h) {
     return (mx > x - w / 2 && mx < x + w / 2 && my > y && my < y + h);
 }
@@ -1136,9 +1145,15 @@ class FleeingStudent extends Person {
 // INPUT TRIGGER UNIVERSALI
 // ----------------------------------------
 
-function touchEnded() {
+function touchStarted() {
+    // Su mobile touchStarted è più reattivo di touchEnded/mouseClicked
     mouseClicked();
-    return false; // Previeni comportamenti default del browser
+    return false;
+}
+
+function touchEnded() {
+    // Manteniamo per sicurezza ma touchStarted dovrebbe gestire l'input UI
+    return false;
 }
 
 function mouseClicked() {
@@ -1147,7 +1162,17 @@ function mouseClicked() {
             gameState = 'PLAYING';
         }
     } else if (gameState === 'GAMEOVER') {
-        if (isButtonTapped(mouseX, mouseY, 0)) initGame();
+        let isMobile = width < 500;
+        let modalW = isMobile ? width * 0.9 : 400;
+        let modalH = isMobile ? 350 : 320;
+        let my = height / 2 - modalH / 2;
+        let by = my + modalH - 70;
+        let btnW = isMobile ? modalW * 0.7 : 240;
+        let btnH = 50;
+
+        if (isButtonAt(mouseX, mouseY, width / 2, by, btnW, btnH)) {
+            initGame();
+        }
     } else if (gameState === 'FINAL_SCREEN') {
         let isMobile = width < 500;
         let btnW = isMobile ? min(width * 0.85, 280) : 320;
