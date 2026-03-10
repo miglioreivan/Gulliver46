@@ -82,18 +82,20 @@ let currentIronicMessage = "";
 
 // --- Setup ---
 function setup() {
-    pixelDensity(1); // Ottimizza performance su schermi ad alta densità (mobile)
-    canvasW = min(windowWidth * 0.95, 800);
-    canvasH = min(windowHeight * 0.95, 1200);
+    // Garantisce dimensioni minime non nulle (evita crash Safari)
+    canvasW = max(320, min(windowWidth * 0.95, 800));
+    canvasH = max(480, min(windowHeight * 0.95, 1200));
+    
     let cnv = createCanvas(canvasW, canvasH);
+    pixelDensity(1); // Performance su schermi retina
     cnv.parent('game-container');
 
     textFont(mainFont);
     textStyle(BOLD);
 
-    // Previene comportamenti default del browser sul canvas
-    cnv.elt.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
-    cnv.elt.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+    // Compatibilità massima listener eventi (funzioni standard preferite ad arrow in setup sensibili)
+    cnv.elt.addEventListener("touchstart", function(e) { e.preventDefault(); }, { passive: false });
+    cnv.elt.addEventListener("touchmove", function(e) { e.preventDefault(); }, { passive: false });
 
     univpmBuilding = { x: 40, y: 70, w: 100, h: 80 };
 
@@ -105,8 +107,8 @@ function setup() {
 }
 
 function windowResized() {
-    canvasW = min(windowWidth * 0.95, 800);
-    canvasH = min(windowHeight * 0.95, 1200);
+    canvasW = max(320, min(windowWidth * 0.95, 800));
+    canvasH = max(480, min(windowHeight * 0.95, 1200));
     resizeCanvas(canvasW, canvasH);
 }
 
@@ -156,7 +158,9 @@ function spawnStationGroup() {
     let sidewalkH = 90; // Altezza marciapiede
     let totalH = sidewalkH + areaH + 70; // Spazio extra per il nome fermata e il cartello
 
-    while (!validArea) {
+    let safetyCounter = 0;
+    while (!validArea && safetyCounter < 50) {
+        safetyCounter++;
         // Garantisce che sx e sy permettano alla fermata completa (nome compreso) di stare in gioco
         sx = random(30, width - areaW - 30);
         sy = random(80, height - totalH - 10);
@@ -166,7 +170,8 @@ function spawnStationGroup() {
         let monAreaY = 320;
         if (sx + areaW > monAreaX && sy < monAreaY) continue;
 
-        if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) > 200) {
+        // Limita il loop se non trova spazio: dopo 50 tentativi accetta la posizione corrente
+        if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) > 200 || safetyCounter >= 50) {
             validArea = true;
         }
     }
