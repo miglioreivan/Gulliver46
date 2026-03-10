@@ -116,10 +116,15 @@ function setup() {
 }
 
 function windowResized() {
-    let w = windowWidth || window.innerWidth || 320;
-    let h = windowHeight || window.innerHeight || 480;
+    // Usiamo innerHeight per Safari Mobile che ha barre dinamiche
+    let w = window.innerWidth || 320;
+    let h = window.innerHeight || 480;
+    
+    // Su mobile riduciamo leggermente l'altezza per sicurezza anti-clipping
+    let hFactor = (w < 500) ? 0.92 : 0.95;
+    
     canvasW = max(320, min(w * 0.95, 800));
-    canvasH = max(480, min(h * 0.95, 1200));
+    canvasH = max(480, min(h * hFactor, 1200));
     resizeCanvas(canvasW, canvasH);
     
     // Centra l'edificio dopo il resize
@@ -140,6 +145,10 @@ function initGame() {
     vJoy.active = false;    // Reset joystick
     inputState = { up: false, down: false, left: false, right: false }; // Reset tasti
     lastPedestrianCount = 0; // Reset contatore pedoni per spawnStationGroup
+    
+    // Reset istantaneo dello scroll del tabellone al centro della prima fermata
+    tickerScrollX = width / 2; 
+    
     crashStationInitialPeds = 0;
     bloodSplats = [];
     explosionTimer = 0;

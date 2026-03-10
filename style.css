@@ -1,20 +1,18 @@
-/* Reset e setup base */
 html,
 body {
     margin: 0;
     padding: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
+    /* Fix per mobile Safari: evita che la barra degli indirizzi copra l'UI */
+    min-height: -webkit-fill-available; 
     overflow: hidden;
-    /* Evita lo scroll accidentale su smartphone */
     background-color: #922b21;
-    /* Rosso spento richiesto */
     display: flex;
     justify-content: center;
     align-items: center;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     touch-action: none;
-    /* Disabilita zoom e swipe nativi del browser per permettere lo swipe di gioco */
 }
 
 /* Stile per il contenitore del canvas e l'ombra dell'"Isola" */
