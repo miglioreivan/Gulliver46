@@ -332,8 +332,8 @@ function processStationLoading() {
         crashStationInitialPeds = waitingPeds.length;
     }
 
-    // Carica i pedoni uno ad uno ogni 10 frame (leggermente più lento per vedere l'animazione)
-    if (loadingTimer > 10) {
+    // Carica i pedoni uno ad uno ogni 4 frame (più veloce di prima)
+    if (loadingTimer > 4) {
         // Cerca il primo pedone che non sta ancora "salendo"
         for (let p of waitingPeds) {
             if (!p.isBoarding) {
@@ -355,8 +355,8 @@ function processStationLoading() {
 
     // Se tutti i pedoni sono saliti (l'array è vuoto perché vengono rimossi dopo l'animazione)
     if (waitingPeds.length === 0) {
-        // Aspetta un secondo (60 frame) dopo l'ultimo caricamento per dare feedback
-        if (loadingTimer > 60) {
+        // Aspetta mezzo secondo (30 frame) dopo l'ultimo caricamento per dare feedback
+        if (loadingTimer > 30) {
             bus.acceleration = 0.1;
             currentStationIndex++;
             if (currentStationIndex >= routeStations.length || currentStationIndex === FINAL_CRASH_STATION_INDEX) {
