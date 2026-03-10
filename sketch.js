@@ -59,6 +59,7 @@ let loadingTimer = 0;
 let runOverCount = 0; // Contatore pedoni investiti
 let crashStationInitialPeds = 0; // Numero iniziale pedoni alla fermata del crash
 let bloodSplats = []; // Macchie rosse a terra per pedoni investiti
+let lastPedestrianCount = 0; // Storico pedoni generati
 
 // Animazione Finale
 let explosionTimer = 0;
@@ -83,17 +84,24 @@ let currentIronicMessage = "";
 // --- Setup ---
 function setup() {
     // Garantisce dimensioni minime non nulle (evita crash Safari)
-    canvasW = max(320, min(windowWidth * 0.95, 800));
-    canvasH = max(480, min(windowHeight * 0.95, 1200));
+    // Se windowWidth o windowHeight non sono popolati correttamente da p5, usiamo i valori nativi del browser.
+    let w = windowWidth || window.innerWidth || 320;
+    let h = windowHeight || window.innerHeight || 480;
     
+    canvasW = max(320, min(w * 0.95, 800));
+    canvasH = max(480, min(h * 0.95, 1200));
+    
+    pixelDensity(1); // Importante chiamarlo prima di createCanvas per stabilità su alcuni Safari
     let cnv = createCanvas(canvasW, canvasH);
-    pixelDensity(1); // Performance su schermi retina
-    cnv.parent('game-container');
+    
+    // Sicurezza nel caso p5 non trovasse l'elemento automaticamente
+    let container = document.getElementById('game-container');
+    if (container) cnv.parent(container);
 
     textFont(mainFont);
     textStyle(BOLD);
 
-    // Compatibilità massima listener eventi (funzioni standard preferite ad arrow in setup sensibili)
+    // Compatibilità massima listener eventi
     cnv.elt.addEventListener("touchstart", function(e) { e.preventDefault(); }, { passive: false });
     cnv.elt.addEventListener("touchmove", function(e) { e.preventDefault(); }, { passive: false });
 
@@ -107,8 +115,10 @@ function setup() {
 }
 
 function windowResized() {
-    canvasW = max(320, min(windowWidth * 0.95, 800));
-    canvasH = max(480, min(windowHeight * 0.95, 1200));
+    let w = windowWidth || window.innerWidth || 320;
+    let h = windowHeight || window.innerHeight || 480;
+    canvasW = max(320, min(w * 0.95, 800));
+    canvasH = max(480, min(h * 0.95, 1200));
     resizeCanvas(canvasW, canvasH);
 }
 
@@ -136,7 +146,7 @@ function initGame() {
     gameState = 'START';
 }
 
-let lastPedestrianCount = 0; // Nuova variabile globale introdotta per contare lo storico pedoni generati
+// let lastPedestrianCount = 0; // RIMOSSA DA QUI E SPOSTATA IN ALTO
 function spawnStationGroup() {
     waitingPeds = [];
     bloodSplats = [];
