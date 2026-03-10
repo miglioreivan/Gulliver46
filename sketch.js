@@ -265,8 +265,8 @@ function updatePhysics() {
             bus.angle = targetAngle;
 
             // Accelera proporzionalmente alla spinta del dito
-            // Velocità massima touch: 50% della maxSpeed
-            let touchMaxSpeed = bus.maxSpeed * 0.5;
+            // Velocità massima touch: 100% della maxSpeed
+            let touchMaxSpeed = bus.maxSpeed * 1.0;
             let targetSpeed = map(distPx, 10, vJoy.maxR, 0, touchMaxSpeed, true);
 
             // Fai accelerare in modo leggermente più fluido
