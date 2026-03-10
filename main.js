@@ -196,6 +196,7 @@ const sketch = (p) => {
                 if (currentStationIndex >= Config.routeStations.length || currentStationIndex === Config.FINAL_CRASH_STATION_INDEX) {
                     gameState = 'EXPLODING_SHAKE';
                 } else {
+                    bloodSplats = [];
                     const spawned = spawnStationGroup(p, p.width, p.height, scaleFactor, bus, lastStationCenter, currentStationIndex, lastPedestrianCount, univpmBuilding);
                     waitingArea = spawned.waitingArea;
                     stationZone = spawned.stationZone;
