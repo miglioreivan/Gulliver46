@@ -188,3 +188,76 @@ export function drawGameOverMenu(p, width, height, currentIronicMessage, passeng
     p.text("RIPROVA", bx, by + btnH / 2);
     p.pop();
 }
+
+export function drawTutorialScreen(p, width, height, assets, menuPeds) {
+    p.push();
+    if (menuPeds) {
+        for (let ped of menuPeds) {
+            ped.x += p.cos(ped.angle) * 0.5;
+            ped.y += p.sin(ped.angle) * 0.5;
+            if (ped.x < 0) ped.x = width; if (ped.x > width) ped.x = 0;
+            if (ped.y < 0) ped.y = height; if (ped.y > height) ped.y = 0;
+            ped.draw();
+        }
+    }
+
+    p.fill(0, 220);
+    p.rect(0, 0, width, height);
+
+    p.fill(255);
+    p.textAlign(p.CENTER, p.TOP);
+    p.textStyle(p.BOLD);
+    p.textSize(32);
+    p.text("COME SI GIOCA", width / 2, 40);
+
+    let isMobile = width < 500;
+    let imgSize = isMobile ? 100 : 130;
+    
+    // Draw PC/Mobile instructions with images
+    p.textSize(isMobile ? 14 : 16);
+    p.textStyle(p.NORMAL);
+    
+    let currentY = 100;
+
+    // Desktop Section
+    if (assets.arrows) {
+        p.imageMode(p.CENTER);
+        p.image(assets.arrows, width / 2, currentY + imgSize / 2, imgSize, imgSize);
+        currentY += imgSize + 10;
+        p.text("Usa le Frecce o WASD per guidare", width / 2, currentY);
+        currentY += 40;
+    }
+
+    // Mobile Section
+    if (assets.joystick) {
+        p.imageMode(p.CENTER);
+        p.image(assets.joystick, width / 2, currentY + imgSize / 2, imgSize, imgSize);
+        currentY += imgSize + 10;
+        p.text("Trascina il Joystick per sterzare", width / 2, currentY);
+        currentY += 50;
+    }
+
+    // General Instructions
+    p.fill(255, 204, 0);
+    p.textStyle(p.BOLD);
+    p.text("Fermati nelle zone tratteggiate!", width / 2, currentY);
+    currentY += 25;
+    p.text("Non stirare nessuno!", width / 2, currentY);
+
+    // OK Button
+    let btnW = 200;
+    let btnH = 50;
+    let btnX = width / 2 - btnW / 2;
+    let btnY = height - 100;
+    
+    let pulse = p.sin(p.frameCount * 0.1) * 3;
+    p.fill(UI_BUTTON_RED);
+    p.rect(btnX - pulse/2, btnY, btnW + pulse, btnH, 12);
+    p.fill(255);
+    p.textSize(22);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.text("OK", width / 2, btnY + btnH / 2);
+    
+    p.pop();
+}
+

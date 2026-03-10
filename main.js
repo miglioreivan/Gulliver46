@@ -5,7 +5,7 @@ import { SmokeParticle } from './src/entities/SmokeParticle.js';
 import { FleeingStudent } from './src/entities/FleeingStudent.js';
 import { handleInput, updatePhysics } from './src/logic/physics.js';
 import { spawnStationGroup } from './src/logic/gameplay.js';
-import { drawHUD, drawBottomTicker, drawModalMessage, drawGameOverMenu } from './src/ui/components.js';
+import { drawHUD, drawBottomTicker, drawModalMessage, drawGameOverMenu, drawTutorialScreen } from './src/ui/components.js';
 import { drawIslandEnvironment, drawUnivpmBuilding } from './src/render/environment.js';
 import { drawStationMarker, drawBus, drawBloodSplats, drawAngryBubble } from './src/render/helpers.js';
 
@@ -47,6 +47,12 @@ const sketch = (p) => {
     let univpmBuilding = { x: 0, y: 0, w: 150, h: 100 };
     let menuPeds = [];
     let currentIronicMessage = "";
+    let tutorialAssets = { arrows: null, joystick: null };
+
+    p.preload = () => {
+        tutorialAssets.arrows = p.loadImage('assets/arrows.png');
+        tutorialAssets.joystick = p.loadImage('assets/joystick.png');
+    };
 
     p.setup = () => {
         let w = p.windowWidth || window.innerWidth || 320;
@@ -128,6 +134,8 @@ const sketch = (p) => {
 
         if (gameState === 'START') {
             drawModalMessage(p, p.width, p.height, "GULLIVER 46", "Riuscirai a portare tutti a lezione?", ["ACCENDI MOTORE"], menuPeds);
+        } else if (gameState === 'HOW_TO_PLAY') {
+            drawTutorialScreen(p, p.width, p.height, tutorialAssets, menuPeds);
         } else if (gameState === 'LOADING') {
             bus.speed = 0;
             processStationLoading();
@@ -372,6 +380,10 @@ const sketch = (p) => {
     const handleUniversalClick = (mx, my) => {
         if (gameState === 'START') {
             if (isButtonAt(mx, my, p.width / 2, p.height / 2 + 80, 240, 60)) {
+                gameState = 'HOW_TO_PLAY';
+            }
+        } else if (gameState === 'HOW_TO_PLAY') {
+            if (isButtonAt(mx, my, p.width / 2, p.height - 100 + 25, 200, 50)) {
                 gameState = 'PLAYING';
             }
         } else if (gameState === 'GAMEOVER') {

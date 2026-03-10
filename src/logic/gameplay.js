@@ -10,9 +10,9 @@ export function spawnStationGroup(p, width, height, scaleFactor, bus, lastStatio
 
     let numStudents = 0;
     if (currentStationIndex === 0) {
-        numStudents = p.floor(p.random(7, 10));
+        numStudents = p.floor(p.random(12, 18));
     } else {
-        let increase = p.floor(p.random(2, 6));
+        let increase = p.floor(p.random(4, 10));
         numStudents = lastPedestrianCount.value + increase;
     }
     lastPedestrianCount.value = numStudents;
