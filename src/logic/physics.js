@@ -84,15 +84,17 @@ export function updatePhysics(p, bus, vJoy, inputState, width, height, setGameSt
     let cosA = p.cos(bus.angle);
     let sinA = p.sin(bus.angle);
 
-    let corners = [
-        { x: bus.x + (-bh) * cosA - (-bw) * sinA, y: bus.y + (-bh) * sinA + (-bw) * cosA },
-        { x: bus.x + (bh) * cosA - (-bw) * sinA, y: bus.y + (bh) * sinA + (-bw) * cosA },
-        { x: bus.x + (bh) * cosA - (bw) * sinA, y: bus.y + (bh) * sinA + (bw) * cosA },
-        { x: bus.x + (-bh) * cosA - (bw) * sinA, y: bus.y + (-bh) * sinA + (bw) * cosA }
+    let r = bw + 2; // Check radius (half-width + tiny buffer)
+    let offset = bh - r;
+    let checkPoints = [
+        { x: bus.x, y: bus.y },
+        { x: bus.x + offset * cosA, y: bus.y + offset * sinA },
+        { x: bus.x - offset * cosA, y: bus.y - offset * sinA }
     ];
 
-    for (let c of corners) {
-        if (c.x < -2 || c.x > width + 2 || c.y < hudBottom - 2 || c.y > tickerTop + 2) {
+    for (let cp of checkPoints) {
+        if (cp.x - r < -2 || cp.x + r > width + 2 || 
+            cp.y - r < hudBottom - 2 || cp.y + r > tickerTop + 2) {
             setGameState('GAMEOVER');
             break;
         }

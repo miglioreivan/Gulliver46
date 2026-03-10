@@ -47,11 +47,13 @@ const sketch = (p) => {
     let univpmBuilding = { x: 0, y: 0, w: 150, h: 100 };
     let menuPeds = [];
     let currentIronicMessage = "";
-    let tutorialAssets = { arrows: null, joystick: null };
+    let tutorialAssets = { arrows: null, joystick: null, busstop: null };
+    let currentStopInitialPeds = 0;
 
     p.preload = () => {
         tutorialAssets.arrows = p.loadImage('assets/arrows.png');
         tutorialAssets.joystick = p.loadImage('assets/joystick.png');
+        tutorialAssets.busstop = p.loadImage('assets/busstop.png');
     };
 
     p.setup = () => {
@@ -142,7 +144,7 @@ const sketch = (p) => {
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
             drawPedestrians();
             drawBus(p, bus, scaleFactor, inputState);
-            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState);
+            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState, waitingPeds.length, currentStopInitialPeds);
             drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState);
         } else if (gameState === 'PLAYING') {
             handleInput(p, vJoy, inputState);
@@ -151,7 +153,7 @@ const sketch = (p) => {
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
             drawPedestrians();
             drawBus(p, bus, scaleFactor, inputState);
-            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState);
+            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState, waitingPeds.length, currentStopInitialPeds);
             drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState);
             drawMobileControls();
         } else if (gameState === 'GAMEOVER') {
@@ -222,6 +224,7 @@ const sketch = (p) => {
             if (p.abs(bus.speed) < 0.5) {
                 gameState = 'LOADING';
                 loadingTimer = 0;
+                currentStopInitialPeds = waitingPeds.length;
             }
         }
     };
@@ -255,7 +258,29 @@ const sketch = (p) => {
                 }
             }
 
-            if (!ped.isBoarding && !ped.isAngry && p.dist(bus.x, bus.y, ped.x, ped.y) < 50 && p.abs(bus.speed) > 0.1) {
+            let hit = false;
+            if (!ped.isBoarding && !ped.isAngry && p.abs(bus.speed) > 0.1) {
+                // 3-circle collision check for better accuracy
+                let cosA = p.cos(bus.angle);
+                let sinA = p.sin(bus.angle);
+                let r = (bus.w / 2) + 5; // Slightly increased radius for better consistency
+                let offset = (bus.h / 2) - r;
+
+                let checkPoints = [
+                    { x: bus.x, y: bus.y },
+                    { x: bus.x + offset * cosA, y: bus.y + offset * sinA },
+                    { x: bus.x - offset * cosA, y: bus.y - offset * sinA }
+                ];
+
+                for (let cp of checkPoints) {
+                    if (p.dist(ped.x, ped.y, cp.x, cp.y) < r + 2) { // Additional tiny buffer per student
+                        hit = true;
+                        break;
+                    }
+                }
+            }
+
+            if (hit) {
                 runOverCount++;
                 bloodSplats.push({ x: ped.x, y: ped.y, r: p.random(18, 28), alpha: p.random(160, 210), seed: p.floor(p.random(100000)) });
                 waitingPeds.splice(i, 1);
@@ -306,44 +331,96 @@ const sketch = (p) => {
             if (explosionTimer > 60) { gameState = 'WALKING_AWAY'; explosionTimer = 0; }
         } else if (gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN') {
             if (explosionTimer > 120) gameState = 'FINAL_SCREEN';
+            
             if (gameState === 'FINAL_SCREEN') {
                 let isMobile = p.width < 500;
-                textOpacity = p.min(textOpacity + 2, 255);
-                p.fill(0, textOpacity * 0.9); p.rect(0, 0, p.width, p.height);
+                textOpacity = p.min(textOpacity + 5, 255);
+                
+                // Dark Backdrop
+                p.fill(0, textOpacity * 0.85);
+                p.rect(0, 0, p.width, p.height);
+
                 p.push();
-                p.textAlign(p.CENTER, p.CENTER);
-                p.fill(255, textOpacity); p.textStyle(p.BOLD); p.textSize(isMobile ? 26 : 32);
-                let titleY = p.height * 0.15;
-                p.text("Il 46 è PIENO !!!", p.width / 2, titleY);
-                p.textStyle(p.NORMAL); p.textSize(isMobile ? 12 : 14); p.textLeading(isMobile ? 18 : 22);
-                let subY = titleY + (isMobile ? 45 : 55);
+                let modalW = p.min(p.width * 0.9, 450);
+                let modalH = isMobile ? 520 : 580;
+                let mx = p.width / 2 - modalW / 2;
+                let my = p.height / 2 - modalH / 2;
+                
+                // Main Card
+                p.fill(Config.UI_DARK_BG);
+                p.stroke(255, 40);
+                p.strokeWeight(1);
+                p.drawingContext.shadowBlur = 30;
+                p.drawingContext.shadowColor = p.color(0, 150);
+                p.rect(mx, my, modalW, modalH, 25);
+                p.drawingContext.shadowBlur = 0;
+
+                // Title Area
+                p.textAlign(p.CENTER, p.TOP);
+                p.fill(255);
+                p.textStyle(p.BOLD);
+                p.textSize(isMobile ? 28 : 34);
+                p.text("Il 46 è PIENO !!!", p.width / 2, my + 40);
+                
+                // Subtitle / Narrative
+                p.textStyle(p.NORMAL);
+                p.textSize(isMobile ? 14 : 16);
+                p.fill(255, 220);
+                let subY = my + 95;
                 p.text("Farsela a piedi fino a Montedago\nnon è il massimo.", p.width / 2, subY);
-                p.text("Gulliver lavora da anni per un trasporto migliore.", p.width / 2, subY + (isMobile ? 35 : 45));
+                p.fill(255, 180);
+                p.textSize(isMobile ? 12 : 14);
+                p.text("Gulliver lavora da anni per un trasporto migliore.", p.width / 2, subY + 50);
+
+                // Stats Section (Modern Box)
+                let statsW = modalW * 0.85;
+                let statsH = isMobile ? 80 : 90;
+                let sx = p.width / 2 - statsW / 2;
+                let sy = subY + 95;
+                p.fill(0, 60);
+                p.noStroke();
+                p.rect(sx, sy, statsW, statsH, 15);
                 
-                let btnW = isMobile ? p.min(p.width * 0.85, 280) : 320;
-                let btnH = isMobile ? 45 : 50;
+                p.textAlign(p.CENTER, p.CENTER);
+                p.fill(255, 200);
+                p.textSize(12);
+                p.text("STATISTICHE DI VIAGGIO", p.width / 2, sy + 15);
+                
+                p.fill(255);
+                p.textSize(isMobile ? 13 : 15);
+                p.textStyle(p.BOLD);
+                p.text(`Sardine in ritardo: ${passengers}`, p.width / 2, sy + 40);
+                p.fill(Config.UI_BUTTON_RED);
+                p.text(`Pedoni stirati: ${runOverCount}`, p.width / 2, sy + 62);
+
+                // Action Buttons
+                let btnW = modalW * 0.8;
+                let btnH = isMobile ? 50 : 55;
                 let btnX = p.width / 2;
-                let btnVotaY = p.height * 0.40;
-                let cVota = p.color(Config.UI_BUTTON_RED); cVota.setAlpha(textOpacity);
-                p.fill(cVota); p.rect(btnX - btnW / 2, btnVotaY, btnW, btnH, 10);
-                p.fill(255, textOpacity); p.textStyle(p.BOLD); p.textSize(isMobile ? 18 : 22);
+                let btnVotaY = sy + statsH + 30;
+                
+                // VOTA Button
+                p.fill(Config.UI_BUTTON_RED);
+                p.rect(btnX - btnW / 2, btnVotaY, btnW, btnH, 12);
+                p.fill(255);
+                p.textSize(isMobile ? 20 : 22);
                 p.text("VOTA GULLIVER", p.width / 2, btnVotaY + btnH / 2);
-                
-                let btnReportY = btnVotaY + btnH + (isMobile ? 12 : 18);
-                let cReport = p.color('#2980b9'); cReport.setAlpha(textOpacity);
-                p.fill(cReport); p.rect(btnX - btnW / 2, btnReportY, btnW, btnH, 10);
-                p.fill(255, textOpacity); p.textStyle(p.BOLD); p.textSize(isMobile ? 13 : 15);
+
+                // REPORT Button
+                let btnReportY = btnVotaY + btnH + 15;
+                p.fill('#2980b9');
+                p.rect(btnX - btnW / 2, btnReportY, btnW, btnH, 12);
+                p.fill(255);
+                p.textSize(isMobile ? 14 : 16);
                 p.text("LEGGI IL REPORT TRASPORTI", p.width / 2, btnReportY + btnH / 2);
-                
-                let statsY = btnReportY + btnH + (isMobile ? 40 : 50);
-                p.fill(200, textOpacity); p.textStyle(p.NORMAL); p.textSize(isMobile ? 11 : 13);
-                p.text(`Statistiche:\nPasseggeri arrivati in ritardo: ${passengers}\nPedoni stirati: ${runOverCount}`, p.width / 2, statsY);
-                
-                let btnRipartiY = p.height - (isMobile ? 100 : 80);
-                p.fill(50, textOpacity); p.stroke(255, textOpacity * 0.5); p.strokeWeight(2);
-                p.rect(btnX - btnW / 2, btnRipartiY, btnW, btnH, 8);
-                p.noStroke(); p.fill(255, textOpacity); p.textStyle(p.BOLD); p.textSize(18);
-                p.text("GIOCA DI NUOVO", p.width / 2, btnRipartiY + btnH / 2);
+
+                // Replay Button (Bottom of screen, subtle)
+                let btnRipartiY = my + modalH - 45;
+                p.fill(255, 180); // Increased visibility
+                p.textAlign(p.CENTER, p.CENTER);
+                p.textStyle(p.BOLD);
+                p.textSize(14);
+                p.text("TOCCA PER GIOCARE DI NUOVO", p.width / 2, btnRipartiY);
                 p.pop();
             }
         }
@@ -379,43 +456,58 @@ const sketch = (p) => {
 
     const handleUniversalClick = (mx, my) => {
         if (gameState === 'START') {
-            if (isButtonAt(mx, my, p.width / 2, p.height / 2 + 80, 240, 60)) {
+            let isMobile = p.width < 500;
+            let modalH = isMobile ? 380 : 350;
+            let modalY = p.height / 2 - modalH / 2;
+            let btnY = modalY + 180;
+            if (isButtonAt(mx, my, p.width / 2, btnY, 240, 60)) {
                 gameState = 'HOW_TO_PLAY';
             }
         } else if (gameState === 'HOW_TO_PLAY') {
-            if (isButtonAt(mx, my, p.width / 2, p.height - 100 + 25, 200, 50)) {
+            let isMobile = p.width < 500;
+            let modalH = isMobile ? 540 : 580;
+            let modalY = p.height / 2 - modalH / 2;
+            let btnY = modalY + modalH - 80;
+            if (isButtonAt(mx, my, p.width / 2, btnY, 200, 50)) {
                 gameState = 'PLAYING';
             }
         } else if (gameState === 'GAMEOVER') {
             let isMobile = p.width < 500;
             let modalW = isMobile ? p.width * 0.9 : 400;
-            let modalH = isMobile ? 350 : 320;
-            let by = p.height / 2 - modalH / 2 + modalH - 70;
-            if (isButtonAt(mx, my, p.width / 2, by, isMobile ? modalW * 0.7 : 240, 50)) {
+            let modalH = isMobile ? 400 : 360;
+            let modalY = p.height / 2 - modalH / 2;
+            let btnY = modalY + modalH - 85;
+            if (isButtonAt(mx, my, p.width / 2, btnY, isMobile ? modalW * 0.7 : 240, 55)) {
                 initGame();
             }
         } else if (gameState === 'FINAL_SCREEN') {
             let isMobile = p.width < 500;
-            let btnW = isMobile ? p.min(p.width * 0.85, 280) : 320;
-            let btnH = isMobile ? 45 : 50;
-            let btnVotaY = p.height * 0.40;
-            let btnReportY = btnVotaY + btnH + (isMobile ? 12 : 18);
-            let btnRipartiY = p.height - (isMobile ? 100 : 80);
+            let modalW = p.min(p.width * 0.9, 450);
+            let modalH = isMobile ? 520 : 580;
+            let modalY = p.height / 2 - modalH / 2;
+            let subY = modalY + 95;
+            let sy = subY + 95;
+            let btnW = modalW * 0.8;
+            let btnH = isMobile ? 50 : 55;
+            let btnVotaY = sy + (isMobile ? 80 : 90) + 30; // sy + statsH + 30
+            let btnReportY = btnVotaY + btnH + 15;
+            let btnRipartiY = modalY + modalH - 50;
 
-            if (isButtonAt(mx, my, p.width / 2, btnRipartiY, btnW, btnH)) {
+            if (isButtonAt(mx, my, p.width / 2, btnRipartiY - 20, btnW, 40)) { // Adjusted for "Tocca per giocare di nuovo"
                 initGame();
             } else if (isButtonAt(mx, my, p.width / 2, btnVotaY, btnW, btnH)) {
                 window.open('https://www.instagram.com/acu_gulliver/', '_blank');
             } else if (isButtonAt(mx, my, p.width / 2, btnReportY, btnW, btnH)) {
-                window.open('https://tr.ee/SYAfWGDhyL', '_blank');
+                let pdfUrl = 'https://ugc.production.linktr.ee/818a15e8-6f08-441d-84f9-d8a20c7a6499_REPORT-QUESTIONARIO-TRASPORTI.pdf';
+                window.open('https://docs.google.com/viewer?url=' + encodeURIComponent(pdfUrl), '_blank');
             }
         }
     };
 
     const isButtonAt = (mx, my, x, y, w, h) => {
         let padding = (p.width < 500) ? 15 : 0;
-        return (mx > x - w / 2 - padding && mx < x + w / 2 + padding && 
-                my > y - padding && my < y + h + padding);
+        return (mx > x - w / 2 - padding && mx < x + w / 2 + padding &&
+            my > y - padding && my < y + h + padding);
     };
 };
 

@@ -1,6 +1,6 @@
 import { UI_DARK_BG, UI_BUTTON_RED, routeStations, FINAL_CRASH_STATION_INDEX } from '../config.js';
 
-export function drawHUD(p, width, height, passengers, currentStationIndex, gameState) {
+export function drawHUD(p, width, height, passengers, currentStationIndex, gameState, waitingPedsCount, initialPedsCount) {
     p.push();
     p.fill(UI_DARK_BG);
     p.noStroke();
@@ -18,13 +18,50 @@ export function drawHUD(p, width, height, passengers, currentStationIndex, gameS
     p.textSize(14);
     p.text(`Pros: ${routeStations[currentStationIndex]}`, width - 15, 27);
 
-    if (gameState === 'LOADING') {
-        p.fill(0, 150);
-        p.rect(0, height / 2 - 30, width, 60);
-        p.textAlign(p.CENTER, p.CENTER);
-        p.fill(255, 204, 0);
-        p.textSize(28);
-        p.text("FERMO E CARICA...", width / 2, height / 2);
+    // Don't show the banner for "Cimitero Tavernelle" (index 3)
+    if (gameState === 'LOADING' && currentStationIndex !== 3) {
+        p.push();
+        let isMobile = width < 500;
+        let bannerW = p.min(width * 0.85, 450);
+        let bannerH = isMobile ? 80 : 90;
+        let bx = width / 2 - bannerW / 2;
+        let by = height / 2 - bannerH / 2;
+
+        // Modal background
+        p.fill(0, 220);
+        p.stroke(UI_BUTTON_RED);
+        p.strokeWeight(3);
+        p.rect(bx, by, bannerW, bannerH, 20);
+
+        // Title text
+        p.noStroke();
+        p.textAlign(p.CENTER, p.TOP);
+        p.fill(255);
+        p.textSize(isMobile ? 18 : 22);
+        p.textStyle(p.BOLD);
+        p.text("FERMO E CARICA...", width / 2, by + 15);
+
+        // Progress bar background
+        let barW = bannerW * 0.8;
+        let barH = 12;
+        let barX = width / 2 - barW / 2;
+        let barY = by + (isMobile ? 45 : 55);
+
+        p.fill(40);
+        p.rect(barX, barY, barW, barH, 6);
+
+        // Smooth Progress bar
+        if (initialPedsCount > 0) {
+            let progress = (initialPedsCount - waitingPedsCount) / initialPedsCount;
+            p.fill(UI_BUTTON_RED);
+            p.rect(barX, barY, barW * progress, barH, 6);
+
+            // Highlight glow on progress
+            p.fill(255, 50);
+            p.rect(barX, barY, barW * progress, barH / 2, 6);
+        }
+
+        p.pop();
     }
     p.pop();
 }
@@ -99,6 +136,23 @@ export function drawBottomTicker(p, width, height, currentStationIndex, tickerSc
     p.pop();
 }
 
+function drawModernCard(p, width, height, modalW, modalH) {
+    let mx = width / 2 - modalW / 2;
+    let my = height / 2 - modalH / 2;
+
+    p.push();
+    p.fill(UI_DARK_BG);
+    p.stroke(255, 40);
+    p.strokeWeight(1);
+    p.drawingContext.shadowBlur = 30;
+    p.drawingContext.shadowColor = p.color(0, 150);
+    p.rect(mx, my, modalW, modalH, 25);
+    p.drawingContext.shadowBlur = 0;
+    p.pop();
+
+    return { mx, my };
+}
+
 export function drawModalMessage(p, width, height, title, subtitle, buttons, menuPeds) {
     p.push();
     if (menuPeds) {
@@ -114,33 +168,39 @@ export function drawModalMessage(p, width, height, title, subtitle, buttons, men
     p.fill(0, 180);
     p.rect(0, 0, width, height);
 
-    p.fill(UI_BUTTON_RED);
-    p.textAlign(p.CENTER, p.CENTER);
-    p.textSize(42);
-    p.text(title, width / 2, height / 3 - 50);
+    let isMobile = width < 500;
+    let modalW = p.min(width * 0.9, 400);
+    let modalH = isMobile ? 380 : 350;
+    let { mx, my } = drawModernCard(p, width, height, modalW, modalH);
 
-    p.stroke(UI_BUTTON_RED);
-    p.strokeWeight(3);
-    p.line(width / 2 - 40, height / 3 - 10, width / 2 + 40, height / 3 - 10);
-    p.noStroke();
+    p.textAlign(p.CENTER, p.TOP);
+    p.fill(UI_BUTTON_RED);
+    p.textStyle(p.BOLD);
+    p.textSize(isMobile ? 32 : 42);
+    p.text(title, width / 2, my + 40);
+
+    p.fill(255, 100);
+    p.rect(width / 2 - 30, my + 95, 60, 3, 2);
 
     p.fill(255);
+    p.textStyle(p.NORMAL);
     p.textSize(18);
-    p.text(subtitle, width / 2, height / 3 + 40);
+    p.text(subtitle, width / 2, my + 120);
 
     let btnArray = Array.isArray(buttons) ? buttons : [buttons];
-    let btnW = 240;
+    let btnW = modalW * 0.8;
     let btnH = 60;
-    let spacing = 15;
     let pulse = p.sin(p.frameCount * 0.1) * 3;
 
     for (let i = 0; i < btnArray.length; i++) {
-        let btnY = height / 2 + 80 + i * (btnH + spacing);
-        let btnX = width / 2 - (btnW + pulse) / 2;
+        let btnY = my + 180 + i * (btnH + 15);
         p.fill(UI_BUTTON_RED);
-        p.rect(btnX, btnY, btnW + pulse, btnH, 12);
+        p.noStroke();
+        p.rect(width / 2 - (btnW + pulse) / 2, btnY, btnW + pulse, btnH, 15);
         p.fill(255);
+        p.textStyle(p.BOLD);
         p.textSize(22);
+        p.textAlign(p.CENTER, p.CENTER);
         p.text(btnArray[i], width / 2, btnY + btnH / 2);
     }
     p.pop();
@@ -152,40 +212,49 @@ export function drawGameOverMenu(p, width, height, currentIronicMessage, passeng
     p.rect(0, 0, width, height);
 
     let modalW = isMobile ? width * 0.9 : 400;
-    let modalH = isMobile ? 350 : 320;
-    let mx = width / 2 - modalW / 2;
-    let my = height / 2 - modalH / 2;
-
-    p.fill(UI_DARK_BG);
-    p.stroke(255, 30);
-    p.strokeWeight(2);
-    p.rect(mx, my, modalW, modalH, 15);
+    let modalH = isMobile ? 400 : 360;
+    let { mx, my } = drawModernCard(p, width, height, modalW, modalH);
 
     p.textAlign(p.CENTER, p.TOP);
     p.textStyle(p.BOLD);
     p.fill(UI_BUTTON_RED);
     p.textSize(isMobile ? 22 : 26);
-    let titlePadding = 20;
-    p.text(currentIronicMessage, width / 2 - modalW / 2 + titlePadding, my + 30, modalW - titlePadding * 2);
+    let titlePadding = 30;
+    p.text(currentIronicMessage, width / 2 - modalW / 2 + titlePadding, my + 40, modalW - titlePadding * 2);
+
+    p.fill(255, 40);
+    p.rect(width / 2 - 40, my + 120, 80, 2);
+
+    // Stats Section
+    let sy = my + 145;
+    p.textAlign(p.CENTER, p.CENTER);
+    p.fill(255, 180);
+    p.textSize(12);
+    p.text("STATISTICHE", width / 2, sy);
 
     p.fill(255);
     p.textSize(isMobile ? 14 : 16);
-    p.textLeading(20);
-    p.textAlign(p.CENTER, p.CENTER);
-    let statsText = `Passeggeri arrivati in ritardo: ${passengers}\nPedoni stirati: ${runOverCount}\n\nNon scoraggiarti,\nGulliver crede in te!`;
-    p.text(statsText, width / 2, my + modalH / 2 + 25);
+    p.textStyle(p.BOLD);
+    p.text(`Sardine in ritardo: ${passengers}`, width / 2, sy + 25);
+    p.fill(UI_BUTTON_RED);
+    p.text(`Pedoni stirati: ${runOverCount}`, width / 2, sy + 48);
 
-    let btnW = isMobile ? modalW * 0.7 : 240;
-    let btnH = 50;
-    let bx = width / 2;
-    let by = my + modalH - 70;
+    p.fill(255, 150);
+    p.textStyle(p.ITALIC);
+    p.textSize(12);
+    p.text("Non scoraggiarti, Gulliver crede in te!", width / 2, sy + 85);
+
+    let btnW = modalW * 0.7;
+    let btnH = 55;
+    let by = my + modalH - 85;
 
     p.fill(UI_BUTTON_RED);
     p.noStroke();
-    p.rect(bx - btnW / 2, by, btnW, btnH, 10);
+    p.rect(width / 2 - btnW / 2, by, btnW, btnH, 15);
     p.fill(255);
-    p.textSize(isMobile ? 18 : 20);
-    p.text("RIPROVA", bx, by + btnH / 2);
+    p.textStyle(p.BOLD);
+    p.textSize(20);
+    p.text("RIPROVA", width / 2, by + btnH / 2);
     p.pop();
 }
 
@@ -204,60 +273,68 @@ export function drawTutorialScreen(p, width, height, assets, menuPeds) {
     p.fill(0, 220);
     p.rect(0, 0, width, height);
 
+    let isMobile = width < 500;
+    let modalW = p.min(width * 0.95, 480);
+    let modalH = isMobile ? 540 : 580; // Optimized height
+    let { mx, my } = drawModernCard(p, width, height, modalW, modalH);
+
     p.fill(255);
     p.textAlign(p.CENTER, p.TOP);
     p.textStyle(p.BOLD);
-    p.textSize(32);
-    p.text("COME SI GIOCA", width / 2, 40);
+    p.textSize(isMobile ? 26 : 32);
+    p.text("COME SI GIOCA", width / 2, my + 30);
 
-    let isMobile = width < 500;
-    let imgSize = isMobile ? 100 : 130;
-    
-    // Draw PC/Mobile instructions with images
-    p.textSize(isMobile ? 14 : 16);
-    p.textStyle(p.NORMAL);
-    
-    let currentY = 100;
+    let currentY = my + 80;
+    let iconSize = isMobile ? 70 : 85;
 
-    // Desktop Section
-    if (assets.arrows) {
-        p.imageMode(p.CENTER);
-        p.image(assets.arrows, width / 2, currentY + imgSize / 2, imgSize, imgSize);
-        currentY += imgSize + 10;
-        p.text("Usa le Frecce o WASD per guidare", width / 2, currentY);
-        currentY += 40;
+    // Controls Section (Side-by-Side)
+    p.imageMode(p.CENTER);
+    if (assets.arrows && assets.joystick) {
+        let spacing = modalW * 0.18; // Reduced spacing
+        p.image(assets.arrows, width / 2 - spacing, currentY + iconSize / 2, iconSize, iconSize);
+        p.image(assets.joystick, width / 2 + spacing, currentY + iconSize / 2, iconSize, iconSize);
+        currentY += iconSize + 10;
+        p.fill(255, 200);
+        p.textStyle(p.NORMAL);
+        p.textSize(isMobile ? 12 : 14);
+        p.text("Utilizza le frecce o trascina il dito sullo schermo per guidare.", width / 2, currentY);
+        currentY += 45;
     }
 
-    // Mobile Section
-    if (assets.joystick) {
+    // Large Bus Stop Section
+    if (assets.busstop) {
+        let stopImgW = modalW * 0.75; // Even larger
+        let stopImgH = stopImgW * 0.55;
         p.imageMode(p.CENTER);
-        p.image(assets.joystick, width / 2, currentY + imgSize / 2, imgSize, imgSize);
-        currentY += imgSize + 10;
-        p.text("Trascina il Joystick per sterzare", width / 2, currentY);
-        currentY += 50;
+        p.image(assets.busstop, width / 2, currentY + stopImgH / 2, stopImgW, stopImgH);
+        currentY += stopImgH + 10;
+        p.fill(255, 204, 0);
+        p.textStyle(p.BOLD);
+        p.textSize(isMobile ? 15 : 18);
+        p.text("Fermati nelle zone tratteggiate!", width / 2, currentY);
+        currentY += 35;
     }
 
     // General Instructions
-    p.fill(255, 204, 0);
+    p.fill(255, 100, 100);
     p.textStyle(p.BOLD);
-    p.text("Fermati nelle zone tratteggiate!", width / 2, currentY);
-    currentY += 25;
+    p.textSize(isMobile ? 14 : 16);
     p.text("Non stirare nessuno!", width / 2, currentY);
 
     // OK Button
-    let btnW = 200;
+    let btnW = modalW * 0.5;
     let btnH = 50;
-    let btnX = width / 2 - btnW / 2;
-    let btnY = height - 100;
-    
+    let btnY = my + modalH - 80;
+
     let pulse = p.sin(p.frameCount * 0.1) * 3;
     p.fill(UI_BUTTON_RED);
-    p.rect(btnX - pulse/2, btnY, btnW + pulse, btnH, 12);
+    p.noStroke();
+    p.rect(width / 2 - (btnW + pulse) / 2, btnY, btnW + pulse, btnH, 15);
     p.fill(255);
     p.textSize(22);
     p.textAlign(p.CENTER, p.CENTER);
     p.text("OK", width / 2, btnY + btnH / 2);
-    
+
     p.pop();
 }
 
