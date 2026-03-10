@@ -272,19 +272,22 @@ function updatePhysics() {
             // Fai accelerare in modo leggermente più fluido
             bus.speed = lerp(bus.speed, targetSpeed, 0.8);
         } else {
-            // Se torna al centro, frena da fermo piuttosto rapidamente
-            if (bus.speed > 0) bus.speed -= bus.friction * 2;
-            if (bus.speed < 0) bus.speed += bus.friction * 2;
-            if (abs(bus.speed) < bus.friction * 2) bus.speed = 0;
+            // Se torna al centro, stop immediato su mobile
+            bus.speed = 0;
         }
     } else {
         // Controlli tastiera stile veicolo
         if (inputState.up) bus.speed += bus.acceleration;
         else if (inputState.down) bus.speed -= bus.acceleration;
         else {
-            if (bus.speed > 0) bus.speed -= bus.friction;
-            if (bus.speed < 0) bus.speed += bus.friction;
-            if (abs(bus.speed) < bus.friction) bus.speed = 0;
+            // Se siamo su mobile (width < 500) lo fermiamo subito se nessun tasto è premuto
+            if (width < 500) {
+                bus.speed = 0;
+            } else {
+                if (bus.speed > 0) bus.speed -= bus.friction;
+                if (bus.speed < 0) bus.speed += bus.friction;
+                if (abs(bus.speed) < bus.friction) bus.speed = 0;
+            }
         }
 
         bus.speed = constrain(bus.speed, -bus.maxSpeed / 2, bus.maxSpeed);
