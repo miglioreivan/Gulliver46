@@ -119,14 +119,14 @@ function windowResized() {
     // Usiamo innerHeight per Safari Mobile che ha barre dinamiche
     let w = window.innerWidth || 320;
     let h = window.innerHeight || 480;
-    
+
     // Su mobile riduciamo leggermente l'altezza per sicurezza anti-clipping
     let hFactor = (w < 500) ? 0.92 : 0.95;
-    
+
     canvasW = max(320, min(w * 0.95, 800));
     canvasH = max(480, min(h * hFactor, 1200));
     resizeCanvas(canvasW, canvasH);
-    
+
     // Centra l'edificio dopo il resize
     if (univpmBuilding) {
         univpmBuilding.x = width / 2 - 50;
@@ -145,10 +145,10 @@ function initGame() {
     vJoy.active = false;    // Reset joystick
     inputState = { up: false, down: false, left: false, right: false }; // Reset tasti
     lastPedestrianCount = 0; // Reset contatore pedoni per spawnStationGroup
-    
+
     // Reset istantaneo dello scroll del tabellone al centro della prima fermata
-    tickerScrollX = width / 2; 
-    
+    tickerScrollX = width / 2;
+
     crashStationInitialPeds = 0;
     bloodSplats = [];
     explosionTimer = 0;
@@ -189,7 +189,7 @@ function spawnStationGroup() {
         // Garantisce che sx e sy permettano alla fermata completa (nome compreso) di stare in gioco
         // Ridotta l'area Y massima per evitare sovrapposizioni con il tabellone in basso
         sx = random(30, width - areaW - 30);
-        sy = random(80, height - totalH - 100); 
+        sy = random(80, height - totalH - 100);
 
         // Evita l'area del monitor informazioni in alto a destra
         let monAreaX = width - 200;
@@ -197,7 +197,8 @@ function spawnStationGroup() {
         if (sx + areaW > monAreaX && sy < monAreaY) continue;
 
         // Limita il loop se non trova spazio: dopo 50 tentativi accetta la posizione corrente
-        if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) > 200 || safetyCounter >= 50) {
+        // Aumentata distanza a 300 per evitare sovrapposizioni con il bus
+        if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) > 300 || safetyCounter >= 50) {
             validArea = true;
         }
     }
@@ -342,12 +343,11 @@ function updatePhysics() {
     bus.x += cos(bus.angle) * bus.speed;
     bus.y += sin(bus.angle) * bus.speed;
 
-    // Limiti del mondo (clamping) - impedisce di finire sotto il tabellone
+    // Definiamo il limite inferiore variabile (sopra il tabellone)
     let maxY = height - (width < 500 ? 85 : 105);
-    bus.x = constrain(bus.x, 0, width);
-    bus.y = constrain(bus.y, 0, maxY);
 
-    if (bus.x < 0 || bus.y < 0 || bus.x > width || bus.y > height) {
+    // Game Over se esce dai bordi o tocca il tabellone
+    if (bus.x < 0 || bus.y < 0 || bus.x > width || bus.y > maxY) {
         gameState = 'GAMEOVER';
     }
 }
@@ -1176,8 +1176,12 @@ class FleeingStudent extends Person {
 // ----------------------------------------
 
 function touchStarted() {
-    // Su mobile touchStarted è più reattivo di touchEnded/mouseClicked
-    mouseClicked();
+    // Su mobile touchStarted è più reattivo. Passiamo le coordinate esatte del tocco.
+    if (touches && touches.length > 0) {
+        mouseClicked(touches[0].x, touches[0].y);
+    } else {
+        mouseClicked(mouseX, mouseY);
+    }
     return false;
 }
 
@@ -1186,21 +1190,23 @@ function touchEnded() {
     return false;
 }
 
-function mouseClicked() {
+function mouseClicked(tx, ty) {
+    let mx = (tx !== undefined) ? tx : mouseX;
+    let my = (ty !== undefined) ? ty : mouseY;
     if (gameState === 'START') {
-        if (isButtonTapped(mouseX, mouseY, 0)) {
+        if (isButtonTapped(mx, my, 0)) {
             gameState = 'PLAYING';
         }
     } else if (gameState === 'GAMEOVER') {
         let isMobile = width < 500;
         let modalW = isMobile ? width * 0.9 : 400;
         let modalH = isMobile ? 350 : 320;
-        let my = height / 2 - modalH / 2;
-        let by = my + modalH - 70;
+        let pmy = height / 2 - modalH / 2;
+        let by = pmy + modalH - 70;
         let btnW = isMobile ? modalW * 0.7 : 240;
         let btnH = 50;
 
-        if (isButtonAt(mouseX, mouseY, width / 2, by, btnW, btnH)) {
+        if (isButtonAt(mx, my, width / 2, by, btnW, btnH)) {
             initGame();
         }
     } else if (gameState === 'FINAL_SCREEN') {
@@ -1214,14 +1220,12 @@ function mouseClicked() {
         let btnReportY = btnVotaY + btnH + btnSpacing;
         let btnRipartiY = height - (isMobile ? 70 : 80);
 
-        if (isButtonAt(mouseX, mouseY, btnX, btnRipartiY, btnW, btnH)) {
+        if (isButtonAt(mx, my, btnX, btnRipartiY, btnW, btnH)) {
             initGame();
-        } else if (isButtonAt(mouseX, mouseY, btnX, btnVotaY, btnW, btnH)) {
-            window.open('https://www.gulliversinistrauniversitaria.it/', '_blank');
-        } else if (isButtonAt(mouseX, mouseY, btnX, btnReportY, btnW, btnH)) {
+        } else if (isButtonAt(mx, my, btnX, btnVotaY, btnW, btnH)) {
+            window.open('https://www.instagram.com/acu_gulliver/', '_blank');
+        } else if (isButtonAt(mx, my, btnX, btnReportY, btnW, btnH)) {
             window.open('https://tr.ee/SYAfWGDhyL', '_blank');
         }
     }
 }
-
-
