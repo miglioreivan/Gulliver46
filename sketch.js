@@ -135,7 +135,7 @@ function windowResized() {
 
 function initGame() {
     bus.x = width / 2;
-    bus.y = height * 0.8;
+    bus.y = height * 0.7; // Spostato più in alto (da 0.8) per evitare la zona di game over su schermi piccoli
     bus.angle = PI;
     bus.speed = 0;
     passengers = 0;
@@ -348,10 +348,11 @@ function updatePhysics() {
     bus.x += cos(bus.angle) * bus.speed;
     bus.y += sin(bus.angle) * bus.speed;
 
-    // Definiamo il limite inferiore variabile (sopra il tabellone)
-    let maxY = height - (width < 500 ? 85 : 105);
+    // --- Controllo Game Over accurato (toccando i bordi visibili) ---
+    // Definiamo i limiti basandoci sugli elementi UI visibili
+    let hudBottom = 55;
+    let tickerTop = height - (width < 500 ? 75 : 95);
 
-    // --- Controllo Game Over accurato (toccando i bordi) ---
     // Calcoliamo i 4 angoli del bus ruotato per precisione millimetrica
     let bh = bus.h / 2;
     let bw = bus.w / 2;
@@ -366,7 +367,8 @@ function updatePhysics() {
     ];
 
     for (let c of corners) {
-        if (c.x < 0 || c.x > width || c.y < 0 || c.y > maxY) {
+        // Aggiungiamo 2px di tolleranza verso l'esterno per un feeling meno punitivo su mobile
+        if (c.x < -2 || c.x > width + 2 || c.y < hudBottom - 2 || c.y > tickerTop + 2) {
             gameState = 'GAMEOVER';
             break;
         }
