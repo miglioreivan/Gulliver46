@@ -60,6 +60,7 @@ let runOverCount = 0; // Contatore pedoni investiti
 let crashStationInitialPeds = 0; // Numero iniziale pedoni alla fermata del crash
 let bloodSplats = []; // Macchie rosse a terra per pedoni investiti
 let lastPedestrianCount = 0; // Storico pedoni generati
+let tickerScrollX = 0; // Per lo scorrimento fluido del tabellone in basso
 
 // Animazione Finale
 let explosionTimer = 0;
@@ -87,13 +88,13 @@ function setup() {
     // Se windowWidth o windowHeight non sono popolati correttamente da p5, usiamo i valori nativi del browser.
     let w = windowWidth || window.innerWidth || 320;
     let h = windowHeight || window.innerHeight || 480;
-    
+
     canvasW = max(320, min(w * 0.95, 800));
     canvasH = max(480, min(h * 0.95, 1200));
-    
+
     pixelDensity(1); // Importante chiamarlo prima di createCanvas per stabilità su alcuni Safari
     let cnv = createCanvas(canvasW, canvasH);
-    
+
     // Sicurezza nel caso p5 non trovasse l'elemento automaticamente
     let container = document.getElementById('game-container');
     if (container) cnv.parent(container);
@@ -102,10 +103,10 @@ function setup() {
     textStyle(BOLD);
 
     // Compatibilità massima listener eventi
-    cnv.elt.addEventListener("touchstart", function(e) { e.preventDefault(); }, { passive: false });
-    cnv.elt.addEventListener("touchmove", function(e) { e.preventDefault(); }, { passive: false });
+    cnv.elt.addEventListener("touchstart", function (e) { e.preventDefault(); }, { passive: false });
+    cnv.elt.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
 
-    univpmBuilding = { x: 40, y: 70, w: 100, h: 80 };
+    univpmBuilding = { x: width / 2 - 50, y: 70, w: 100, h: 80 };
 
     for (let i = 0; i < 15; i++) {
         menuPeds.push(new Person(random(width), random(height)));
@@ -120,6 +121,11 @@ function windowResized() {
     canvasW = max(320, min(w * 0.95, 800));
     canvasH = max(480, min(h * 0.95, 1200));
     resizeCanvas(canvasW, canvasH);
+    
+    // Centra l'edificio dopo il resize
+    if (univpmBuilding) {
+        univpmBuilding.x = width / 2 - 50;
+    }
 }
 
 function initGame() {
@@ -172,8 +178,9 @@ function spawnStationGroup() {
     while (!validArea && safetyCounter < 50) {
         safetyCounter++;
         // Garantisce che sx e sy permettano alla fermata completa (nome compreso) di stare in gioco
+        // Ridotta l'area Y massima per evitare sovrapposizioni con il tabellone in basso
         sx = random(30, width - areaW - 30);
-        sy = random(80, height - totalH - 10);
+        sy = random(80, height - totalH - 100); 
 
         // Evita l'area del monitor informazioni in alto a destra
         let monAreaX = width - 200;
@@ -213,7 +220,7 @@ function draw() {
         drawPedestrians();
         drawBus();
         drawHUD();
-        drawRouteMonitor();
+        drawBottomTicker();
     } else if (gameState === 'PLAYING') {
         handleInput();
         updatePhysics();
@@ -222,7 +229,7 @@ function draw() {
         drawPedestrians();
         drawBus();
         drawHUD();
-        drawRouteMonitor();
+        drawBottomTicker();
         drawMobileControls();
     } else if (gameState === 'GAMEOVER') {
         drawStationMarker();
@@ -326,6 +333,11 @@ function updatePhysics() {
     bus.x += cos(bus.angle) * bus.speed;
     bus.y += sin(bus.angle) * bus.speed;
 
+    // Limiti del mondo (clamping) - impedisce di finire sotto il tabellone
+    let maxY = height - (width < 500 ? 85 : 105);
+    bus.x = constrain(bus.x, 0, width);
+    bus.y = constrain(bus.y, 0, maxY);
+
     if (bus.x < 0 || bus.y < 0 || bus.x > width || bus.y > height) {
         gameState = 'GAMEOVER';
     }
@@ -356,11 +368,13 @@ function processStationLoading() {
         crashStationInitialPeds = waitingPeds.length;
     }
 
+    let isCrashStation = (currentStationIndex === FINAL_CRASH_STATION_INDEX - 1);
+
     // Carica i pedoni uno ad uno ogni 4 frame (più veloce di prima)
     if (loadingTimer > 4) {
-        // Cerca il primo pedone che non sta ancora "salendo"
+        // Cerca il primo pedone che non sta ancora "salendo" o non è già ammassato
         for (let p of waitingPeds) {
-            if (!p.isBoarding) {
+            if (!p.isBoarding && !p.isAngry) {
                 p.isBoarding = true;
                 loadingTimer = 0;
                 break;
@@ -368,10 +382,16 @@ function processStationLoading() {
         }
     }
 
-    // --- FERMATA DEL CRASH: esplode quando sale il 50% dei passeggeri ---
-    if (currentStationIndex === FINAL_CRASH_STATION_INDEX - 1 && crashStationInitialPeds > 0) {
-        let boarded = crashStationInitialPeds - waitingPeds.length;
-        if (boarded >= Math.ceil(crashStationInitialPeds * 0.5)) {
+    // --- FERMATA DEL CRASH: esplode quando il 50% si è ammassato fuori arrabbiato ---
+    if (isCrashStation && crashStationInitialPeds > 0) {
+        let angryCount = waitingPeds.filter(p => p.isAngry).length;
+        if (angryCount >= Math.ceil(crashStationInitialPeds * 0.5)) {
+            // Converte TUTTI i restanti pedoni sul marciapiede (anche quelli ammassati) in gente che scappa
+            for (let p of waitingPeds) {
+                fleeingStudents.push(new FleeingStudent(p.x, p.y));
+            }
+            waitingPeds = []; // Svuota il marciapiede
+
             gameState = 'EXPLODING_SHAKE';
             return;
         }
@@ -507,112 +527,86 @@ function drawHUD() {
         fill(255, 204, 0); // Giallo evidenziatore
         textSize(28);
         text("FERMO E CARICA...", width / 2, height / 2);
-    } else if (gameState === 'PLAYING') {
-        fill(255);
-        textAlign(CENTER, TOP);
-        textSize(16);
-        stroke(0);
-        strokeWeight(3);
-        // Riportato in basso come richiesto
-        text("Sposta l'autobus all'interno della zona tratteggiata", width / 2, height - 30);
-        noStroke();
     }
     pop();
 }
 
-function drawRouteMonitor() {
+function drawBottomTicker() {
     push();
-    let pad = 10;
-    let monW = 180;
-    let monH = routeStations.length * 25 + 40;
-    let monX = width - monW - pad;
-    let monY = 65;
+    let isMobile = width < 500;
+    let margin = isMobile ? 10 : 20;
+    let barW = width - (margin * 2);
+    let barH = isMobile ? 65 : 75; // Più alto per dare respiro
+    let barX = margin;
+    let barY = height - barH - margin;
 
-    // Sfondo monitor stile Trenitalia
-    fill(245, 245, 250, 220);
-    stroke(200);
-    strokeWeight(1);
-    rect(monX, monY, monW, monH, 5);
+    // Sfondo barra (Floating Glassmorphism style)
+    fill(0, 200);
+    stroke(255, 40);
+    strokeWeight(1.5);
+    rect(barX, barY, barW, barH, 15);
 
-    // Intestazione
-    fill(0, 50, 150);
-    noStroke();
-    rect(monX, monY, monW, 25, 5, 5, 0, 0);
-    fill(255);
-    textSize(11);
-    textAlign(CENTER, CENTER);
-    text("INFORMAZIONI VIAGGIO", monX + monW / 2, monY + 12);
+    // 1. Istruzioni (Padding aumentato)
+    fill(255, 220);
+    textAlign(CENTER, TOP);
+    textSize(isMobile ? 11 : 12);
+    textStyle(BOLD);
+    let instruction = (gameState === 'LOADING') ? "ATTENDI CARICAMENTO..." : "SPOSTA L'AUTOBUS NELLA ZONA TRATTEGGIATA";
+    text(instruction, width / 2, barY + (isMobile ? 10 : 12));
 
-    // Linea verticale del percorso
-    let lineX = monX + 20;
-    let startY = monY + 45;
-    let stepY = 25;
+    // 2. Ticker Stazioni (Scorrevole)
+    let spacing = isMobile ? 130 : 160;
+    let targetX = -currentStationIndex * spacing + width / 2;
+    tickerScrollX = lerp(tickerScrollX, targetX, 0.1);
 
-    // Se siamo in fase di esplosione finale o dopo l'esplosione
-    let isExploded = (gameState === 'EXPLODING_SHAKE' || gameState === 'EXPLODING_BOOM' || gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN');
+    push();
+    // Spostiamo la linea e i pallini un po' più in basso rispetto al testo delle istruzioni
+    translate(tickerScrollX, barY + (isMobile ? 38 : 45));
 
     for (let i = 0; i < routeStations.length; i++) {
-        let sy = startY + i * stepY;
-
-        // Colore della linea e dei punti
-        let dotColor = color(100);
-        let textColor = color(50);
-        let isFuture = i > currentStationIndex;
+        let sx = i * spacing;
+        let isPast = i < currentStationIndex;
         let isCurrent = i === currentStationIndex;
+        let isExploded = (gameState.startsWith('EXPLODING') || gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN') && i >= FINAL_CRASH_STATION_INDEX;
 
-        if (isExploded && i >= FINAL_CRASH_STATION_INDEX) {
-            dotColor = color(200, 0, 0);
-            textColor = color(200, 0, 0);
-        } else if (isCurrent) {
-            dotColor = color(0, 50, 200);
-            textColor = color(0, 50, 200);
-        } else if (isFuture) {
-            dotColor = color(150);
-            textColor = color(100);
-        } else {
-            // Passate
-            dotColor = color(180);
-            textColor = color(180);
-        }
-
-        // Disegna la linea di collegamento (tranne l'ultimo)
+        // Disegna linea di collegamento
         if (i < routeStations.length - 1) {
-            // Linea grigia per segmenti futuri, blu chiaro per passati
-            if (isExploded && i >= FINAL_CRASH_STATION_INDEX - 1) {
-                stroke(200, 0, 0); // Rosso se esploso
-            } else if (i < currentStationIndex) {
-                stroke(0, 100, 255); // Blu per segmenti passati
-            } else {
-                stroke(180); // Grigio per futuri
-            }
             strokeWeight(3);
-            line(lineX, sy, lineX, sy + stepY);
+            let nextIndex = i + 1;
+            let isNextExploded = (gameState.startsWith('EXPLODING') || gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN') && nextIndex >= FINAL_CRASH_STATION_INDEX;
+
+            if (isNextExploded) stroke(200, 0, 0);
+            else if (i < currentStationIndex) stroke(0, 100, 255);
+            else stroke(60);
+            line(sx + 8, 0, sx + spacing - 8, 0);
         }
 
-        // Punto fermata
+        // Pallino stazione
         noStroke();
-        fill(dotColor);
-        ellipse(lineX, sy, 8, 8);
-
-        // Testo fermata
-        textAlign(LEFT, CENTER);
-        textSize(isCurrent ? 10 : 9);
-        if (isCurrent) {
-            // Highlight blu per fermata corrente tipo Trenitalia
-            fill(0, 50, 200, 40);
-            rect(lineX + 10, sy - 10, monW - 40, 20, 2);
-            fill(0, 50, 200);
-            textStyle(BOLD);
-        } else {
-            fill(textColor);
-            textStyle(NORMAL);
+        if (isExploded) fill(200, 0, 0);
+        else if (isCurrent) {
+            // Glow esterno per la stazione corrente
+            fill(0, 100, 255, 50);
+            ellipse(sx, 0, 20, 20);
+            fill(0, 100, 255);
         }
+        else if (isPast) fill(150);
+        else fill(60);
+        ellipse(sx, 0, isCurrent ? 12 : 8, isCurrent ? 12 : 8);
 
-        // Tronca il testo se troppo lungo
-        let name = routeStations[i];
-        if (name.length > 22) name = name.substring(0, 20) + "..";
-        text(name, lineX + 15, sy);
+        // Nome stazione
+        if (isCurrent || isExploded || dist(sx + tickerScrollX, 0, width / 2, 0) < spacing * 0.8) {
+            textAlign(CENTER, TOP);
+            textSize(isCurrent ? 11 : 9);
+            textStyle(isCurrent ? BOLD : NORMAL);
+            fill(isExploded ? color(200, 0, 0) : (isCurrent ? 255 : 180));
+            let name = routeStations[i];
+            // Troncamento intelligente
+            if (name.length > 18) name = name.substring(0, 16) + "..";
+            text(name, sx, 10);
+        }
     }
+    pop();
     pop();
 }
 
@@ -682,7 +676,7 @@ function drawStartMenu() {
 function drawGameOverMenu() {
     drawIslandEnvironment();
     drawUnivpmBuilding();
-    drawRouteMonitor();
+    drawBottomTicker();
 
     let isMobile = width < 500;
 
@@ -840,27 +834,34 @@ function drawPedestrians() {
     for (let i = waitingPeds.length - 1; i >= 0; i--) {
         let p = waitingPeds[i];
 
-        // Gestione Animazione Salita (Boarding)
+        // Gestione Animazione Salita (Boarding) o Avvicinamento (Crash Station)
         if (p.isBoarding) {
             let dx = bus.x - p.x;
             let dy = bus.y - p.y;
             let d = sqrt(dx * dx + dy * dy);
             p.angle = atan2(dy, dx);
 
-            if (d > 5) {
+            let stopDist = isCrashStation ? 45 : 5; // Si ferma prima se è la fermata del crash (ammassamento)
+            if (d > stopDist) {
                 p.x += (dx / d) * 2;
                 p.y += (dy / d) * 2;
                 p.walkCycle += 0.3;
             } else {
-                // Arrivato al bus!
-                passengers++;
-                waitingPeds.splice(i, 1);
-                continue;
+                if (isCrashStation) {
+                    // Alla fermata crash, non salgono: diventano solo arrabbiati e si fermano lì
+                    p.isAngry = true;
+                    p.isBoarding = false;
+                } else {
+                    // Nelle altre fermate salgono normalmente
+                    passengers++;
+                    waitingPeds.splice(i, 1);
+                    continue;
+                }
             }
         }
 
-        // Controlliamo se l'autobus investe un pedone (solo se NON sta salendo)
-        if (!p.isBoarding && dist(bus.x, bus.y, p.x, p.y) < 50 && abs(bus.speed) > 0.1) {
+        // Controlliamo se l'autobus investe un pedone (solo se NON sta salendo e NON è già arrabbiato/vicino)
+        if (!p.isBoarding && !p.isAngry && dist(bus.x, bus.y, p.x, p.y) < 50 && abs(bus.speed) > 0.1) {
             p.runOver = true;
             runOverCount++;
             // Lascia una macchia rossa a terra
@@ -871,7 +872,7 @@ function drawPedestrians() {
 
         p.draw();
 
-        // Alla fermata del crash, i pedoni in attesa si lamentano
+        // Alla fermata del crash, i pedoni in attesa o già ammassati si lamentano
         if (crashLoadingStarted && !p.isBoarding) {
             drawAngryBubble(p.x, p.y);
         }
@@ -995,9 +996,15 @@ function drawMobileControls() {
 function handleEndingSequence() {
     drawIslandEnvironment();
     drawUnivpmBuilding();
-    drawRouteMonitor();
+    drawBottomTicker();
 
     explosionTimer++;
+
+    // Muovi e disegna SEMPRE chi scappa (sia quelli scesi che quelli rimasti a terra)
+    for (let fs of fleeingStudents) {
+        fs.update();
+        fs.draw();
+    }
 
     if (gameState === 'EXPLODING_SHAKE') {
         // Se esplode con 0 passeggeri a bordo, forza 60 per l'animazione finale
@@ -1015,7 +1022,6 @@ function handleEndingSequence() {
         fill(255, 255, 255, 200 - explosionTimer * 2); ellipse(bus.x, bus.y, r / 2, r / 2);
         if (explosionTimer > 60) { gameState = 'WALKING_AWAY'; explosionTimer = 0; }
     } else if (gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN') {
-        for (let fs of fleeingStudents) { fs.update(); fs.draw(); }
         if (explosionTimer > 120) gameState = 'FINAL_SCREEN';
         if (gameState === 'FINAL_SCREEN') {
             let isMobile = width < 500;
@@ -1204,7 +1210,7 @@ function mouseClicked() {
         } else if (isButtonAt(mouseX, mouseY, btnX, btnVotaY, btnW, btnH)) {
             window.open('https://www.gulliversinistrauniversitaria.it/', '_blank');
         } else if (isButtonAt(mouseX, mouseY, btnX, btnReportY, btnW, btnH)) {
-            window.open('https://ugc.production.linktr.ee/818a15e8-6f08-441d-84f9-d8a20c7a6499_REPORT-QUESTIONARIO-TRASPORTI.pdf', '_blank');
+            window.open('https://tr.ee/SYAfWGDhyL', '_blank');
         }
     }
 }
