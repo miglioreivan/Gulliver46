@@ -1,0 +1,133 @@
+Sì, il problema è proprio quello: **su telefono gli oggetti occupano più spazio rispetto al canvas**.
+Il tuo spawn usa dimensioni fisse (`areaW = 150`, `areaH = 120`, ecc.). Su schermi piccoli diventano troppo grandi rispetto alla mappa.
+Quindi succede che:
+
+* la fermata nasce **troppo vicina al bus**
+* oppure **quasi nello stesso punto della precedente**
+* oppure **si sovrappone visivamente**
+
+Ti propongo 3 miglioramenti semplici ma efficaci.
+
+---
+
+# 1. Scala le dimensioni della fermata in base allo schermo
+
+Ora sono fisse. Meglio renderle **proporzionali al canvas**.
+
+Dentro `spawnStationGroup()` cambia questa parte:
+
+```javascript
+let areaW = 150;
+let areaH = 120;
+let sidewalkH = 90;
+```
+
+in qualcosa tipo:
+
+```javascript
+let scale = min(width, height) / 800; 
+
+let areaW = 150 * scale;
+let areaH = 120 * scale;
+let sidewalkH = 90 * scale;
+```
+
+Così su telefono tutto si riduce.
+
+Puoi anche fare:
+
+```javascript
+if(width < 500){
+    areaW *= 0.8;
+    areaH *= 0.8;
+    sidewalkH *= 0.8;
+}
+```
+
+---
+
+# 2. Evita spawn troppo vicino alla fermata precedente
+
+Adesso il codice **non controlla la distanza dalla fermata precedente**.
+
+Aggiungi una variabile globale:
+
+```javascript
+let lastStationPos = null;
+```
+
+Dopo aver trovato `sx` e `sy`, prima di confermare:
+
+```javascript
+if(lastStationPos){
+    let d = dist(sx, sy, lastStationPos.x, lastStationPos.y);
+    if(d < 200) continue;
+}
+```
+
+Poi alla fine della funzione salva la posizione:
+
+```javascript
+lastStationPos = {x: sx, y: sy};
+```
+
+Questo evita fermate sovrapposte.
+
+---
+
+# 3. Aumenta il buffer di sicurezza dal bus su mobile
+
+Il tuo buffer è:
+
+```javascript
+let busBuffer = 60;
+```
+
+Su telefono è poco.
+
+Meglio:
+
+```javascript
+let busBuffer = width < 500 ? 120 : 60;
+```
+
+Così la fermata non spawna vicino all’autobus.
+
+---
+
+# 4. Limita la zona spawn
+
+Adesso spawn ovunque. Meglio lasciare margini.
+
+Sostituisci:
+
+```javascript
+sx = random(30, width - areaW - 30);
+sy = random(80, height - totalH - 100);
+```
+
+con
+
+```javascript
+let margin = width < 500 ? 80 : 40;
+
+sx = random(margin, width - areaW - margin);
+sy = random(120, height - totalH - margin);
+```
+
+---
+
+# Risultato
+
+Con queste 4 modifiche:
+
+* niente spawn sopra il bus
+* niente fermate attaccate
+* dimensioni corrette su telefono
+* spawn più stabile
+
+---
+
+💡 Se vuoi, posso anche mostrarti **un metodo molto più stabile usato nei giochi**:
+invece di spawn casuale, le fermate appaiono **sempre davanti al bus** (mai dietro o sopra).
+Questo elimina quasi tutti i bug mobile.

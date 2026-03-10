@@ -1,0 +1,153 @@
+Per risolvere il problema dello spawn delle fermate su dispositivi mobili, è necessario adattare le dimensioni degli elementi alla grandezza dello schermo e migliorare la logica di posizionamento. Ecco i passaggi chiave:
+
+1. **Dimensioni dinamiche**: Calcola un fattore di scala basato sulla larghezza dello schermo e ridimensiona proporzionalmente il bus, l’area della fermata e i buffer.
+2. **Controllo di distanza minima**: Assicurati che ogni nuova fermata sia sufficientemente lontana dalla precedente per evitare sovrapposizioni visive.
+3. **Aumento dei tentativi**: Incrementa il numero massimo di tentativi nel ciclo di posizionamento per garantire che su schermi piccoli si trovi una posizione valida.
+
+Ecco le modifiche concrete da apportare al codice:
+
+### 1. Aggiungi variabili globali per le dimensioni scalate
+```javascript
+let scaleFactor = 1.0;
+let stationAreaW, stationAreaH, sidewalkH, stationTotalH, busBuffer;
+let lastStationCenter = { x: null, y: null }; // per memorizzare la posizione della fermata precedente
+```
+
+### 2. Crea una funzione per aggiornare le dimensioni
+```javascript
+function updateSizes() {
+  // Scala in base alla larghezza: se < 600, riduci a 0.7, altrimenti 1.0
+  scaleFactor = width < 600 ? 0.7 : 1.0;
+  
+  // Dimensioni bus
+  bus.w = 36 * scaleFactor;
+  bus.h = 96 * scaleFactor;
+  
+  // Dimensioni fermata
+  stationAreaW = 150 * scaleFactor;
+  stationAreaH = 120 * scaleFactor;
+  sidewalkH = 90 * scaleFactor;
+  stationTotalH = sidewalkH + stationAreaH + 70 * scaleFactor; // 70 è lo spazio per il nome, scalato
+  
+  // Buffer per il controllo di sovrapposizione
+  busBuffer = 60 * scaleFactor;
+}
+```
+
+### 3. Chiama `updateSizes()` in `setup()` e in `windowResized()`
+```javascript
+function setup() {
+  // ... existing code ...
+  updateSizes();
+  // ... resto ...
+}
+
+function windowResized() {
+  // ... existing code ...
+  updateSizes();
+  // ... resto ...
+}
+```
+
+### 4. Modifica `spawnStationGroup()` per utilizzare le dimensioni scalate e aggiungere il controllo di distanza
+```javascript
+function spawnStationGroup() {
+  waitingPeds = [];
+  bloodSplats = [];
+
+  // Calcolo numero pedoni (invariato)
+  let numStudents = 0;
+  if (currentStationIndex === 0) {
+    numStudents = floor(random(7, 10));
+  } else {
+    let increase = floor(random(2, 6));
+    numStudents = lastPedestrianCount + increase;
+  }
+  lastPedestrianCount = numStudents;
+
+  let sx, sy;
+  let validArea = false;
+  let safetyCounter = 0;
+  const maxAttempts = 200; // aumentato per schermi piccoli
+
+  while (!validArea && safetyCounter < maxAttempts) {
+    safetyCounter++;
+    sx = random(30, width - stationAreaW - 30);
+    sy = random(80, height - stationTotalH - 100);
+
+    // 1. Evita l'area del monitor informazioni in alto a destra
+    let monAreaX = width - 200;
+    let monAreaY = 320;
+    if (sx + stationAreaW > monAreaX && sy < monAreaY) continue;
+
+    // 2. Evita l'area dell'edificio UNIVPM
+    if (sx + stationAreaW > univpmBuilding.x - 20 && sx < univpmBuilding.x + univpmBuilding.w + 20 &&
+        sy < univpmBuilding.y + univpmBuilding.h + 20) continue;
+
+    // 3. Evita sovrapposizione con il bus (con buffer scalato)
+    let busRect = {
+      x: bus.x - bus.h/2 - busBuffer,
+      y: bus.y - bus.h/2 - busBuffer,
+      w: bus.h + busBuffer*2,
+      h: bus.h + busBuffer*2
+    };
+    let stationRect = {
+      x: sx - 20,
+      y: sy - 20,
+      w: stationAreaW + 40,
+      h: stationTotalH + 40
+    };
+
+    if (sx < busRect.x + busRect.w && sx + stationAreaW > busRect.x &&
+        sy < busRect.y + busRect.h && sy + stationTotalH > busRect.y) {
+      continue; // sovrapposizione con il bus
+    }
+
+    // 4. Controlla distanza dalla fermata precedente (se esiste)
+    if (currentStationIndex > 0 && lastStationCenter.x !== null) {
+      let centerX = sx + stationAreaW / 2;
+      let centerY = sy + stationTotalH / 2;
+      let distFromLast = dist(centerX, centerY, lastStationCenter.x, lastStationCenter.y);
+      let minDist = width * 0.3; // almeno il 30% della larghezza
+      if (distFromLast < minDist) continue;
+    }
+
+    validArea = true;
+  }
+
+  // Salva il centro della nuova fermata
+  lastStationCenter.x = sx + stationAreaW / 2;
+  lastStationCenter.y = sy + stationTotalH / 2;
+
+  waitingArea = { x: sx, y: sy, w: stationAreaW, h: sidewalkH };
+  stationZone = { x: sx, y: sy + sidewalkH, w: stationAreaW, h: stationAreaH };
+
+  for (let i = 0; i < numStudents; i++) {
+    let px = waitingArea.x + random(10, waitingArea.w - 10);
+    let py = waitingArea.y + random(10, waitingArea.h - 10);
+    waitingPeds.push(new Person(px, py));
+  }
+}
+```
+
+### 5. Aggiorna i riferimenti nel codice dove vengono usate dimensioni fisse
+- In `checkStationZone()`, il controllo usa `stationZone` che ora ha dimensioni scalate (va bene perché `stationZone` viene assegnato in `spawnStationGroup`).
+- In `drawStationMarker()`, i rettangoli e le linee usano `waitingArea` e `stationZone` che sono già scalati.
+- In `updatePhysics()`, il controllo dei bordi usa `bus.h` e `bus.w` che sono stati aggiornati.
+- In `drawBus()`, i disegni usano `bus.w` e `bus.h` che ora sono scalati.
+
+### 6. Resetta `lastStationCenter` in `initGame()`
+```javascript
+function initGame() {
+  // ... existing code ...
+  lastStationCenter = { x: null, y: null };
+  // ...
+}
+```
+
+### Perché funziona
+- Le dimensioni si adattano allo schermo, riducendo gli ingombri su mobile.
+- Il controllo di distanza minima evita che le fermate siano troppo vicine tra loro.
+- L’aumento dei tentativi permette di trovare una posizione anche in spazi ristretti.
+
+Con queste modifiche, le fermate non si sovrapporranno più al bus e saranno distribuite in modo più uniforme sullo schermo, migliorando l'esperienza su dispositivi mobili.

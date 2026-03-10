@@ -15,6 +15,9 @@ const UI_BUTTON_RED = '#e74c3c';
 // Font (usato bold per visibilità)
 let mainFont = 'Arial';
 
+let scaleFactor = 1.0;
+let lastStationCenter = { x: null, y: null };
+
 // --- Entità: Bus (Fisica) ---
 let bus = {
     x: 0, y: 0,
@@ -82,6 +85,25 @@ const ironicMessages = [
 ];
 let currentIronicMessage = "";
 
+// --- Scaling Dinamico ---
+function updateSizes() {
+    // Scala in base alla larghezza: se < 500 (mobile), riduci a 0.8, altrimenti 1.0
+    scaleFactor = width < 500 ? 0.8 : 1.0;
+
+    // Dimensioni bus scalate
+    bus.w = 36 * scaleFactor;
+    bus.h = 96 * scaleFactor;
+
+    // Dimensioni edificio UNIVPM scalate
+    univpmBuilding.w = 100 * scaleFactor;
+    univpmBuilding.h = 80 * scaleFactor;
+    univpmBuilding.x = width / 2 - univpmBuilding.w / 2;
+    univpmBuilding.y = 70 * scaleFactor;
+
+    // Buffer dinamico per lo spawn (proporzionale alla dimensione maggiore del bus)
+    // Usiamo una variabile locale o lo calcoliamo al volo in spawnStationGroup
+}
+
 // --- Setup ---
 function setup() {
     // Garantisce dimensioni minime non nulle (evita crash Safari)
@@ -95,6 +117,8 @@ function setup() {
     pixelDensity(1); // Importante chiamarlo prima di createCanvas per stabilità su alcuni Safari
     let cnv = createCanvas(canvasW, canvasH);
 
+    updateSizes();
+
     // Sicurezza nel caso p5 non trovasse l'elemento automaticamente
     let container = document.getElementById('game-container');
     if (container) cnv.parent(container);
@@ -106,7 +130,7 @@ function setup() {
     cnv.elt.addEventListener("touchstart", function (e) { e.preventDefault(); }, { passive: false });
     cnv.elt.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
 
-    univpmBuilding = { x: width / 2 - 50, y: 70, w: 100, h: 80 };
+    // updateSizes() gestisce già la posizione e dimensione dell'edificio in base allo schermo
 
     for (let i = 0; i < 15; i++) {
         menuPeds.push(new Person(random(width), random(height)));
@@ -126,6 +150,8 @@ function windowResized() {
     canvasW = max(320, min(w * 0.95, 800));
     canvasH = max(480, min(h * hFactor, 1200));
     resizeCanvas(canvasW, canvasH);
+
+    updateSizes();
 
     // Centra l'edificio dopo il resize
     if (univpmBuilding) {
@@ -155,6 +181,7 @@ function initGame() {
     particles = [];
     fleeingStudents = [];
     textOpacity = 0;
+    lastStationCenter = { x: null, y: null };
 
     spawnStationGroup();
     currentIronicMessage = random(ironicMessages);
@@ -166,78 +193,114 @@ function spawnStationGroup() {
     waitingPeds = [];
     bloodSplats = [];
 
-    // Logica incrementale stretta: parte da minimo 7, poi sale TASSATIVAMENTE ad ogni fermata successiva
+    // 1. Dimensioni adattive scalate
+    // areaW e areaH sono la zona di parcheggio, sidewalkH è dove stanno i pedoni
+    let areaW = constrain(floor(width * 0.35), 100, 220) * scaleFactor;
+    let sidewalkH = constrain(floor(height * 0.12), 60, 140) * scaleFactor;
+    let areaH = constrain(floor(height * 0.14), 80, 180) * scaleFactor;
+    let totalH = sidewalkH + areaH + (70 * scaleFactor);
+
+    // 2. Numero pedoni (logica incrementale)
     let numStudents = 0;
     if (currentStationIndex === 0) {
         numStudents = floor(random(7, 10));
     } else {
-        let increase = floor(random(2, 6)); // Aggiunge da 2 a 5 pedoni ogni volta in più rispetto alla tappa prima
+        let increase = floor(random(2, 6));
         numStudents = lastPedestrianCount + increase;
     }
     lastPedestrianCount = numStudents;
-    let sx, sy;
+
+    // 3. Buffer dinamico (più prudente su mobile)
+    let busSize = max(bus.w, bus.h);
+    let busBuffer = (busSize * 0.8) + (width < 500 ? 30 : 10);
+    let minDistanceFromPrev = (width < 500) ? width * 0.25 : width * 0.15;
+
+    let sx = 0, sy = 0;
     let validArea = false;
-    // Cerchiamo un'area che possa contenere sia il marciapiede (sopra) che il posteggio (sotto)
-    let areaW = 150; // Larghezza totale zona fermata
-    let areaH = 120;  // Altezza posteggio
-    let sidewalkH = 90; // Altezza marciapiede
-    let totalH = sidewalkH + areaH + 70; // Spazio extra per il nome fermata e il cartello
-
     let safetyCounter = 0;
-    while (!validArea && safetyCounter < 100) {
-        safetyCounter++;
-        // Garantisce che sx e sy permettano alla fermata completa (nome compreso) di stare in gioco
-        sx = random(30, width - areaW - 30);
-        sy = random(80, height - totalH - 100);
+    let maxAttempts = 300;
 
-        // 1. Evita l'area del monitor informazioni in alto a destra
+    while (!validArea && safetyCounter < maxAttempts) {
+        safetyCounter++;
+        // Margini più ampi su schermi piccoli per evitare spawn troppo a bordo
+        let marginX = width < 500 ? 40 : 30;
+        let marginY = width < 500 ? 100 : 80;
+        
+        sx = random(marginX, width - areaW - marginX);
+        sy = random(marginY, height - totalH - 120);
+
+        // --- Controlli di validità ---
+
+        // A. Evita area monitor e edificio UNIVPM
         let monAreaX = width - 200;
         let monAreaY = 320;
         if (sx + areaW > monAreaX && sy < monAreaY) continue;
-
-        // 2. Evita l'area dell'edificio UNIVPM in alto al centro
         if (sx + areaW > univpmBuilding.x - 20 && sx < univpmBuilding.x + univpmBuilding.w + 20 &&
             sy < univpmBuilding.y + univpmBuilding.h + 20) continue;
 
-        // 3. Evita sovrapposizione con il bus (Controllo Area Rettangolare)
-        // Definiamo un'area di rispetto intorno al bus per sicurezza
-        let busBuffer = 60;
-        let busRect = {
-            x: bus.x - bus.h/2 - busBuffer, // Usiamo h per sicurezza dato che ruota
-            y: bus.y - bus.h/2 - busBuffer,
-            w: bus.h + busBuffer*2,
-            h: bus.h + busBuffer*2
-        };
-        let stationRect = {
-            x: sx - 20, 
-            y: sy - 20, 
-            w: areaW + 40, 
-            h: totalH + 40
-        };
-
-        if (sx + areaW > stationRect.x && sx < stationRect.x + stationRect.w &&
-            sy + totalH > stationRect.y && sy < stationRect.y + stationRect.h) {
-            // Check overlap between station and bus
-            if (sx < busRect.x + busRect.w && sx + areaW > busRect.x &&
-                sy < busRect.y + busRect.h && sy + totalH > busRect.y) {
-                continue;
-            }
+        // B. Distanza dalla fermata precedente (per non averle troppo vicine)
+        if (lastStationCenter.x !== null) {
+            let d = dist(sx + areaW / 2, sy + totalH / 2, lastStationCenter.x, lastStationCenter.y);
+            if (d < minDistanceFromPrev) continue;
         }
 
-        // Se siamo arrivati qui, la posizione è valida
+        // C. Area di rispetto attorno all'autobus (Collision Box)
+        let busRect = {
+            x: bus.x - busSize / 2 - busBuffer,
+            y: bus.y - busSize / 2 - busBuffer,
+            w: busSize + busBuffer * 2,
+            h: busSize + busBuffer * 2
+        };
+        let stationRect = {
+            x: sx - 10,
+            y: sy - 10,
+            w: areaW + 20,
+            h: totalH + 20
+        };
+
+        // Verifica overlap
+        let overlap = !(stationRect.x + stationRect.w < busRect.x ||
+                        stationRect.x > busRect.x + busRect.w ||
+                        stationRect.y + stationRect.h < busRect.y ||
+                        stationRect.y > busRect.y + busRect.h);
+
+        if (overlap) {
+            // Smart Shift: prova a spostarla orizzontalmente lontano dal bus
+            let dirX = (sx + areaW / 2 < bus.x) ? -1 : 1;
+            sx += dirX * (busBuffer + 20);
+            
+            // Se lo shift la porta fuori, scarta questo tentativo
+            if (sx < marginX || sx + areaW > width - marginX) continue;
+            
+            // Ricontrolla overlap dopo lo shift
+            stationRect.x = sx - 10;
+            overlap = !(stationRect.x + stationRect.w < busRect.x ||
+                        stationRect.x > busRect.x + busRect.w ||
+                        stationRect.y + stationRect.h < busRect.y ||
+                        stationRect.y > busRect.y + busRect.h);
+            if (overlap) continue;
+        }
+
         validArea = true;
     }
 
-    // Il marciapiede coi pedoni sta SOPRA
-    waitingArea = { x: sx, y: sy, w: areaW, h: sidewalkH };
-    // L'area di posteggio per il bus sta SOTTO il marciapiede
-    stationZone = { x: sx, y: sy + sidewalkH, w: areaW, h: areaH };
+    // 4. Fallback estremo: se non trova posto, forza spawn lontano dal bus
+    if (!validArea) {
+        sx = (bus.x < width / 2) ? width - areaW - 40 : 40;
+        sy = constrain(height * 0.3, 100, height - totalH - 150);
+    }
 
-    // Verifichiamo che la scritta della fermata non esca a destra/sinistra
-    // Se fosse più larga del marciapiede (sx + areaW), lo spawn ne tiene già conto nel while.
+    // 5. Assegnazione coordinate finali
+    waitingArea = { x: sx, y: sy, w: areaW, h: sidewalkH };
+    stationZone = { x: sx, y: sy + sidewalkH, w: areaW, h: areaH };
+    
+    // Memorizza posizione per il prossimo spawn
+    lastStationCenter = { x: sx + areaW / 2, y: sy + totalH / 2 };
+
+    // 6. Generazione pedoni dentro il perimetro scalato
     for (let i = 0; i < numStudents; i++) {
-        let px = waitingArea.x + random(10, waitingArea.w - 10);
-        let py = waitingArea.y + random(10, waitingArea.h - 10);
+        let px = waitingArea.x + random(8, max(8, waitingArea.w - 8));
+        let py = waitingArea.y + random(8, max(8, waitingArea.h - 8));
         waitingPeds.push(new Person(px, py));
     }
 }
@@ -807,6 +870,7 @@ class Person {
     }
     draw() {
         push(); translate(this.x, this.y); rotate(this.angle);
+        scale(scaleFactor);
 
         // 1. Ombra minuscola per distacco dal terreno
         noStroke();
