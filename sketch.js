@@ -199,10 +199,30 @@ function spawnStationGroup() {
         if (sx + areaW > univpmBuilding.x - 20 && sx < univpmBuilding.x + univpmBuilding.w + 20 &&
             sy < univpmBuilding.y + univpmBuilding.h + 20) continue;
 
-        // 3. Evita sovrapposizione con il bus (distanza di sicurezza)
-        // Se siamo su schermi piccoli (width < 450), abbassiamo la pretesa di distanza da 300 a 150
-        let minBusDist = (width < 450) ? 150 : 300;
-        if (dist(sx + areaW / 2, sy + sidewalkH + areaH / 2, bus.x, bus.y) < minBusDist) continue;
+        // 3. Evita sovrapposizione con il bus (Controllo Area Rettangolare)
+        // Definiamo un'area di rispetto intorno al bus per sicurezza
+        let busBuffer = 60;
+        let busRect = {
+            x: bus.x - bus.h/2 - busBuffer, // Usiamo h per sicurezza dato che ruota
+            y: bus.y - bus.h/2 - busBuffer,
+            w: bus.h + busBuffer*2,
+            h: bus.h + busBuffer*2
+        };
+        let stationRect = {
+            x: sx - 20, 
+            y: sy - 20, 
+            w: areaW + 40, 
+            h: totalH + 40
+        };
+
+        if (sx + areaW > stationRect.x && sx < stationRect.x + stationRect.w &&
+            sy + totalH > stationRect.y && sy < stationRect.y + stationRect.h) {
+            // Check overlap between station and bus
+            if (sx < busRect.x + busRect.w && sx + areaW > busRect.x &&
+                sy < busRect.y + busRect.h && sy + totalH > busRect.y) {
+                continue;
+            }
+        }
 
         // Se siamo arrivati qui, la posizione è valida
         validArea = true;
@@ -1215,12 +1235,25 @@ function touchStarted(e) {
     return false;
 }
 
-function touchEnded() {
+function touchEnded(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    // Gestione clic universale al rilascio (per compatibilità mobile popup)
+    if (touches && touches.length === 0) {
+        handleUniversalClick(mouseX, mouseY);
+    }
+    return false;
+}
+
+function mouseReleased() {
+    // In p5.js mouseReleased viene chiamato anche dopo il rilascio del tocco
+    // Evitiamo doppie chiamate controllando se siamo su mobile o se è stato un vero mouse
+    if (width >= 500) {
+        handleUniversalClick(mouseX, mouseY);
+    }
     return false;
 }
 
 function mouseClicked() {
-    handleUniversalClick(mouseX, mouseY);
     return false;
 }
 
