@@ -47,6 +47,7 @@ canvas {
     cursor: pointer;
     color: white;
     text-align: center;
+    touch-action: none;
 }
 
 .overlay-content {

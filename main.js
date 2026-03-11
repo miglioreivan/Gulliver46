@@ -75,8 +75,10 @@ const sketch = (p) => {
             const overlay = document.getElementById('start-overlay');
             if (overlay) {
                 overlay.style.display = 'flex';
-                overlay.addEventListener('click', () => {
+                // Usiamo pointerdown per una risposta immediata su mobile e desktop
+                overlay.addEventListener('pointerdown', () => {
                     overlay.style.display = 'none';
+                    // Assicuriamoci che il canvas sia pronto per il focus
                     cnv.elt.setAttribute('tabindex', '0');
                     cnv.elt.focus();
                 });
