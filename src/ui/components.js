@@ -1,4 +1,5 @@
 import { UI_DARK_BG, UI_BUTTON_RED, routeStations, FINAL_CRASH_STATION_INDEX } from '../config.js';
+import { drawBus } from '../render/helpers.js';
 
 export function drawHUD(p, width, height, passengers, currentStationIndex, gameState, waitingPedsCount, initialPedsCount) {
     p.push();
@@ -141,19 +142,31 @@ export function drawModalMessage(p, width, height, title, subtitle, buttons, men
     let modalH = isMobile ? 380 : 350;
     let { mx, my } = drawModernCard(p, width, height, modalW, modalH);
 
+    // Draw the bus icon above the title
+    p.push();
+    let busW = 36 * (isMobile ? 0.8 : 1);
+    let busH = 96 * (isMobile ? 0.8 : 1);
+    let busX = width / 2;
+    let busY = my + 50;
+    // We want it horizontal, so we need to account for drawBus which assumes bus.h is vertical length and bus.w is horizontal width when angle is 0
+    // Actually drawBus does: rotate(bus.angle), then draws body with rect(-bh/2, -bw/2, bh, bw)
+    // So with angle 0, bh (96) is along X axis, bw (36) is along Y axis. This is exactly what we want for "horizontal"
+    drawBus(p, { x: busX, y: busY, w: busW, h: busH, angle: 0 }, 1, { down: false });
+    p.pop();
+
     p.textAlign(p.CENTER, p.TOP);
     p.fill(UI_BUTTON_RED);
     p.textStyle(p.BOLD);
     p.textSize(isMobile ? 32 : 42);
-    p.text(title, width / 2, my + 40);
+    p.text(title, width / 2, my + 100);
 
     p.fill(255, 100);
-    p.rect(width / 2 - 30, my + 95, 60, 3, 2);
+    p.rect(width / 2 - 30, my + 155, 60, 3, 2);
 
     p.fill(255);
     p.textStyle(p.NORMAL);
     p.textSize(18);
-    p.text(subtitle, width / 2, my + 120);
+    p.text(subtitle, width / 2, my + 180);
 
     let btnArray = Array.isArray(buttons) ? buttons : [buttons];
     let btnW = modalW * 0.8;
@@ -161,7 +174,7 @@ export function drawModalMessage(p, width, height, title, subtitle, buttons, men
     let pulse = p.sin(p.frameCount * 0.1) * 3;
 
     for (let i = 0; i < btnArray.length; i++) {
-        let btnY = my + 180 + i * (btnH + 15);
+        let btnY = my + 240 + i * (btnH + 15);
         p.fill(UI_BUTTON_RED);
         p.noStroke();
         p.rect(width / 2 - (btnW + pulse) / 2, btnY, btnW + pulse, btnH, 15);

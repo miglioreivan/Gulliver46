@@ -460,7 +460,7 @@ const sketch = (p) => {
             let isMobile = p.width < 500;
             let modalH = isMobile ? 380 : 350;
             let modalY = p.height / 2 - modalH / 2;
-            let btnY = modalY + 180;
+            let btnY = modalY + 240;
             if (isButtonAt(mx, my, p.width / 2, btnY, 240, 60)) {
                 gameState = 'HOW_TO_PLAY';
             }
