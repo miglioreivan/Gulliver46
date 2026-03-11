@@ -21,6 +21,8 @@ const sketch = (p) => {
         maxSpeed: 5, acceleration: 0.1,
         friction: 0.05, turnSpeed: 0.05
     };
+    let isEmbedded = window.self !== window.top;
+
     let inputState = { up: false, down: false, left: false, right: false };
     let vJoy = {
         active: false,
@@ -67,6 +69,19 @@ const sketch = (p) => {
 
         let container = document.getElementById('game-container');
         if (container) cnv.parent(container);
+
+        // Gestione Overlay per Embed/Iframe
+        if (isEmbedded) {
+            const overlay = document.getElementById('start-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                overlay.addEventListener('click', () => {
+                    overlay.style.display = 'none';
+                    cnv.elt.setAttribute('tabindex', '0');
+                    cnv.elt.focus();
+                });
+            }
+        }
 
         p.textFont(mainFont);
         p.textStyle(p.BOLD);
@@ -151,7 +166,7 @@ const sketch = (p) => {
             updatePhysics(p, bus, vJoy, inputState, p.width, p.height, (gs) => {
                 if (gs === 'CRASHING') explosionTimer = 0;
                 gameState = gs;
-            });
+            }, isEmbedded);
             checkStationZone();
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
             drawPedestrians();

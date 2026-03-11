@@ -36,7 +36,7 @@ export function handleInput(p, vJoy, inputState) {
     }
 }
 
-export function updatePhysics(p, bus, vJoy, inputState, width, height, setGameState) {
+export function updatePhysics(p, bus, vJoy, inputState, width, height, setGameState, forceMobilePhysics = false) {
     if (vJoy.active) {
         let dx = vJoy.stickX - vJoy.baseX;
         let dy = vJoy.stickY - vJoy.baseY;
@@ -55,7 +55,7 @@ export function updatePhysics(p, bus, vJoy, inputState, width, height, setGameSt
         if (inputState.up) bus.speed += bus.acceleration;
         else if (inputState.down) bus.speed -= bus.acceleration;
         else {
-            if (width < 500) {
+            if (width < 500 || forceMobilePhysics) {
                 bus.speed = 0;
             } else {
                 if (bus.speed > 0) bus.speed -= bus.friction;
