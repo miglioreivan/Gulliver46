@@ -364,13 +364,14 @@ const sketch = (p) => {
                 
                 // Subtitle / Narrative
                 p.textStyle(p.NORMAL);
-                p.textSize(isMobile ? 14 : 16);
-                p.fill(255, 220);
+                p.textSize(isMobile ? 16 : 18);
+                p.fill(255, 230);
                 let subY = my + 95;
                 p.text("Farsela a piedi fino a Montedago\nnon è il massimo.", p.width / 2, subY);
-                p.fill(255, 180);
-                p.textSize(isMobile ? 12 : 14);
-                p.text("Gulliver lavora da anni per un trasporto migliore.", p.width / 2, subY + 50);
+                p.fill(255);
+                p.textStyle(p.BOLD);
+                p.textSize(isMobile ? 15 : 17);
+                p.text("Gulliver lavora da anni per un trasporto migliore.", p.width / 2, subY + 55);
 
                 // Stats Section (Modern Box)
                 let statsW = modalW * 0.85;
