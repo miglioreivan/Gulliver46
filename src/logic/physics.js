@@ -95,7 +95,7 @@ export function updatePhysics(p, bus, vJoy, inputState, width, height, setGameSt
     for (let cp of checkPoints) {
         if (cp.x - r < -2 || cp.x + r > width + 2 || 
             cp.y - r < hudBottom - 2 || cp.y + r > tickerTop + 2) {
-            setGameState('GAMEOVER');
+            setGameState('CRASHING');
             break;
         }
     }

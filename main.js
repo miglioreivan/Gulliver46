@@ -148,7 +148,10 @@ const sketch = (p) => {
             drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState, waitingPeds.length, currentStopInitialPeds);
         } else if (gameState === 'PLAYING') {
             handleInput(p, vJoy, inputState);
-            updatePhysics(p, bus, vJoy, inputState, p.width, p.height, (gs) => gameState = gs);
+            updatePhysics(p, bus, vJoy, inputState, p.width, p.height, (gs) => {
+                if (gs === 'CRASHING') explosionTimer = 0;
+                gameState = gs;
+            });
             checkStationZone();
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
             drawPedestrians();
@@ -156,6 +159,22 @@ const sketch = (p) => {
             drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState);
             drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState, waitingPeds.length, currentStopInitialPeds);
             drawMobileControls();
+        } else if (gameState === 'CRASHING') {
+            explosionTimer++;
+            drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
+            drawPedestrians();
+            p.push();
+            p.translate(p.random(-3, 3), p.random(-3, 3));
+            drawBus(p, bus, scaleFactor, inputState);
+            p.pop();
+            if (explosionTimer % 2 === 0) particles.push(new SmokeParticle(p, bus.x, bus.y));
+            
+            if (explosionTimer > 60) {
+                gameState = 'GAMEOVER';
+                explosionTimer = 0;
+            }
+            drawHUD(p, p.width, p.height, passengers, currentStationIndex, gameState);
+            drawBottomTicker(p, p.width, p.height, currentStationIndex, tickerScrollState, gameState, waitingPeds.length, currentStopInitialPeds);
         } else if (gameState === 'GAMEOVER') {
             drawStationMarker(p, waitingArea, stationZone, currentStationIndex, Config.routeStations, scaleFactor);
             drawPedestrians();
@@ -164,6 +183,7 @@ const sketch = (p) => {
         } else {
             handleEndingSequence();
         }
+        updateParticles();
     };
 
     const processStationLoading = () => {
@@ -425,9 +445,12 @@ const sketch = (p) => {
                 p.pop();
             }
         }
+    };
 
+    const updateParticles = () => {
         for (let i = particles.length - 1; i >= 0; i--) {
-            particles[i].update(); particles[i].show();
+            particles[i].update(); 
+            particles[i].show();
             if (particles[i].alpha <= 0) particles.splice(i, 1);
         }
     };
