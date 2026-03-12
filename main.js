@@ -503,6 +503,8 @@ const sketch = (p) => {
             let btnY = modalY + 240;
             if (isButtonAt(mx, my, p.width / 2, btnY, 240, 60)) {
                 gameState = 'HOW_TO_PLAY';
+            } else if (isButtonAt(mx, my, p.width / 2, modalY + modalH - 35, 120, 30)) {
+                window.open('https://github.com/miglioreivan/Gulliver46/', '_blank');
             }
         } else if (gameState === 'HOW_TO_PLAY') {
             let isMobile = p.width < 500;

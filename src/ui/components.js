@@ -184,6 +184,14 @@ export function drawModalMessage(p, width, height, title, subtitle, buttons, men
         p.textAlign(p.CENTER, p.CENTER);
         p.text(btnArray[i], width / 2, btnY + btnH / 2);
     }
+
+    // GitHub Link at the bottom
+    p.textAlign(p.CENTER, p.BOTTOM);
+    p.textSize(14);
+    p.textStyle(p.NORMAL);
+    p.fill(255, 150);
+    p.text("GitHub Repository", width / 2, my + modalH - 20);
+    
     p.pop();
 }
 
