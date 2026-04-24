@@ -24,6 +24,9 @@ La tua missione è semplice ma ardua: portare quanti più studenti ("sardine") p
 - [Vite](https://vitejs.dev/) - Build tool e ambiente di sviluppo.
 - JavaScript ES6 (Modulare).
 
+### Istanze Ufficiali
+1. [gulliver46.pages.dev](https://gulliver46.pages.dev/)
+
 ### Come giocare (Locale)
 1. Installa le dipendenze:
    ```bash
@@ -55,6 +58,9 @@ Your mission is simple but challenging: transport as many students ("sardines") 
 - [p5.js](https://p5js.org/) - Graphics rendering and logic.
 - [Vite](https://vitejs.dev/) - Build tool and dev environment.
 - Modular JavaScript ES6.
+
+### Official Instances
+1. [gulliver46.pages.dev](https://gulliver46.pages.dev/)
 
 ### How to Play (Locally)
 1. Install dependencies:
