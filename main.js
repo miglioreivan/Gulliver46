@@ -379,86 +379,137 @@ const sketch = (p) => {
 
                 p.push();
                 let modalW = p.min(p.width * 0.9, 450);
-                let modalH = isMobile ? 520 : 580;
+                // Modal height ridotto per stare nel canvas minimo (480px)
+                let modalH = isMobile ? 460 : 510;
                 let mx = p.width / 2 - modalW / 2;
-                let my = p.height / 2 - modalH / 2;
+                // Evita che il modal esca sopra il canvas
+                let my = p.max(8, p.height / 2 - modalH / 2);
 
                 // Main Card
-                p.fill(Config.UI_DARK_BG);
-                p.stroke(255, 40);
-                p.strokeWeight(1);
                 p.drawingContext.shadowBlur = 30;
-                p.drawingContext.shadowColor = p.color(0, 150);
-                p.rect(mx, my, modalW, modalH, 25);
+                p.drawingContext.shadowColor = 'rgba(0,0,0,0.7)';
+                p.fill(Config.UI_DARK_BG);
+                p.stroke(255, 30);
+                p.strokeWeight(1);
+                p.rect(mx, my, modalW, modalH, 22);
                 p.drawingContext.shadowBlur = 0;
 
-                // Title Area
-                p.textAlign(p.CENTER, p.TOP);
-                p.fill(255);
-                p.textStyle(p.BOLD);
-                p.textSize(isMobile ? 28 : 34);
-                p.text("Il 46 è PIENO !!!", p.width / 2, my + 40);
-
-                // Subtitle / Narrative
-                p.textStyle(p.NORMAL);
-                p.textSize(isMobile ? 16 : 18);
-                p.fill(255, 230);
-                let subY = my + 95;
-                p.text("Farsela a piedi fino a Montedago\nnon è il massimo.", p.width / 2, subY);
-                p.fill(255);
-                p.textStyle(p.BOLD);
-                p.textSize(isMobile ? 15 : 17);
-                p.text("Gulliver lavora da anni per un trasporto migliore.", p.width / 2, subY + 55);
-
-                // Stats Section (Modern Box)
-                let statsW = modalW * 0.85;
-                let statsH = isMobile ? 80 : 90;
-                let sx = p.width / 2 - statsW / 2;
-                let sy = subY + 95;
-                p.fill(0, 60);
+                // ── TOP ACCENT BAR ──────────────────────────────────────────
                 p.noStroke();
-                p.rect(sx, sy, statsW, statsH, 15);
+                p.fill(Config.UI_BUTTON_RED);
+                p.rect(mx, my, modalW, 6, 22, 22, 0, 0);
 
+                // ── TITLE ───────────────────────────────────────────────────
                 p.textAlign(p.CENTER, p.CENTER);
-                p.fill(255, 200);
-                p.textSize(12);
-                p.text("STATISTICHE DI VIAGGIO", p.width / 2, sy + 15);
-
                 p.fill(255);
+                p.textStyle(p.BOLD);
+                p.textSize(isMobile ? 26 : 30);
+                p.text("Il 46 è PIENO !!!", p.width / 2, my + 36);
+
+                // Separator
+                p.stroke(255, 20);
+                p.strokeWeight(1);
+                p.line(mx + 30, my + 58, mx + modalW - 30, my + 58);
+                p.noStroke();
+
+                // ── SUBTITLE / NARRATIVE ────────────────────────────────────
+                p.textStyle(p.NORMAL);
                 p.textSize(isMobile ? 13 : 15);
+                p.fill(255, 210);
+                p.text("Farsela a piedi fino a Montedago\nnon è il massimo.", p.width / 2, my + 84);
+
+                p.fill(255);
                 p.textStyle(p.BOLD);
-                p.text(`Sardine in ritardo: ${passengers}`, p.width / 2, sy + 40);
-                p.fill(Config.UI_BUTTON_RED);
-                p.text(`Pedoni stirati: ${runOverCount}`, p.width / 2, sy + 62);
+                p.textSize(isMobile ? 12 : 14);
+                p.text("Gulliver lavora da anni per un trasporto migliore.", p.width / 2, my + 118);
 
-                // Action Buttons
-                let btnW = modalW * 0.8;
-                let btnH = isMobile ? 50 : 55;
-                let btnX = p.width / 2;
-                let btnVotaY = sy + statsH + 30;
+                // ── STATS BOX ───────────────────────────────────────────────
+                let statsW = modalW * 0.85;
+                let statsH = isMobile ? 76 : 84;
+                let sx = p.width / 2 - statsW / 2;
+                let sy = my + 142;
 
-                // VOTA Button
-                p.fill(Config.UI_BUTTON_RED);
-                p.rect(btnX - btnW / 2, btnVotaY, btnW, btnH, 12);
+                p.fill(0, 80);
+                p.stroke(255, 15);
+                p.strokeWeight(1);
+                p.rect(sx, sy, statsW, statsH, 12);
+                p.noStroke();
+
+                p.textAlign(p.CENTER, p.CENTER);
+                p.fill(255, 150);
+                p.textStyle(p.NORMAL);
+                p.textSize(9);
+                p.text("── STATISTICHE DI VIAGGIO ──", p.width / 2, sy + 13);
+
+                let col1X = p.width / 2 - statsW * 0.22;
+                let col2X = p.width / 2 + statsW * 0.22;
+
                 p.fill(255);
-                p.textSize(isMobile ? 20 : 22);
-                p.text("VOTA GULLIVER", p.width / 2, btnVotaY + btnH / 2);
+                p.textStyle(p.BOLD);
+                p.textSize(isMobile ? 20 : 24);
+                p.text(passengers, col1X, sy + statsH * 0.53);
+                p.fill(Config.UI_BUTTON_RED);
+                p.text(runOverCount, col2X, sy + statsH * 0.53);
 
-                // REPORT Button
-                let btnReportY = btnVotaY + btnH + 15;
-                p.fill('#2980b9');
-                p.rect(btnX - btnW / 2, btnReportY, btnW, btnH, 12);
+                p.textStyle(p.NORMAL);
+                p.textSize(9);
+                p.fill(255, 160);
+                p.text("Sardine in ritardo", col1X, sy + statsH * 0.82);
+                p.fill(Config.UI_BUTTON_RED);
+                p.text("Pedoni stirati", col2X, sy + statsH * 0.82);
+
+                p.stroke(255, 18);
+                p.strokeWeight(1);
+                p.line(p.width / 2, sy + 24, p.width / 2, sy + statsH - 8);
+                p.noStroke();
+
+                // ── VOTE BANNER ─────────────────────────────────────────────
+                let bannerY = sy + statsH + 12;
+                let bannerW = modalW * 0.8;
+                let bannerH = isMobile ? 36 : 42;
+
+                let bannerColor = p.color(Config.UI_BUTTON_RED);
+                bannerColor.setAlpha(210);
+                p.fill(bannerColor);
+
+                p.rect(p.width / 2 - bannerW / 2, bannerY, bannerW, bannerH, bannerH / 2);
                 p.fill(255);
-                p.textSize(isMobile ? 14 : 16);
-                p.text("PILLOLE TRASPORTI", p.width / 2, btnReportY + btnH / 2);
-
-                // Replay Button (Bottom of screen, subtle)
-                let btnRipartiY = my + modalH - 45;
-                p.fill(255, 180); // Increased visibility
                 p.textAlign(p.CENTER, p.CENTER);
                 p.textStyle(p.BOLD);
-                p.textSize(14);
-                p.text("TOCCA PER GIOCARE DI NUOVO", p.width / 2, btnRipartiY);
+                p.textSize(isMobile ? 14 : 16);
+                p.text("🗳  12 • 13 • 14 maggio  —  Vota Gulliver!", p.width / 2, bannerY + bannerH / 2);
+
+                // ── ACTION BUTTONS ──────────────────────────────────────────
+                let btnW = modalW * 0.8;
+                let btnH = isMobile ? 48 : 52;
+                let btnX = p.width / 2;
+                let btnGiocaY = bannerY + bannerH + 16;
+
+                // GIOCA DI NUOVO Button
+                p.drawingContext.shadowBlur = 14;
+                p.drawingContext.shadowColor = Config.UI_BUTTON_RED;
+                p.fill(Config.UI_BUTTON_RED);
+                p.noStroke();
+                p.rect(btnX - btnW / 2, btnGiocaY, btnW, btnH, 12);
+                p.drawingContext.shadowBlur = 0;
+                p.fill(255);
+                p.textStyle(p.BOLD);
+                p.textSize(isMobile ? 19 : 21);
+                p.text("GIOCA DI NUOVO", p.width / 2, btnGiocaY + btnH / 2);
+
+                // PILLOLE TRASPORTI Button
+                let btnPilloleY = btnGiocaY + btnH + 12;
+                p.drawingContext.shadowBlur = 12;
+                p.drawingContext.shadowColor = '#9108b6';
+                p.fill('#9108b6');
+                p.noStroke();
+                p.rect(btnX - btnW / 2, btnPilloleY, btnW, btnH, 12);
+                p.drawingContext.shadowBlur = 0;
+                p.fill(255);
+                p.textStyle(p.BOLD);
+                p.textSize(isMobile ? 14 : 16);
+                p.text("PILLOLE TRASPORTI", p.width / 2, btnPilloleY + btnH / 2);
+
                 p.pop();
             }
         }
@@ -526,21 +577,23 @@ const sketch = (p) => {
         } else if (gameState === 'FINAL_SCREEN') {
             let isMobile = p.width < 500;
             let modalW = p.min(p.width * 0.9, 450);
-            let modalH = isMobile ? 520 : 580;
-            let modalY = p.height / 2 - modalH / 2;
-            let subY = modalY + 95;
-            let sy = subY + 95;
+            let modalH = isMobile ? 460 : 510;
+            let modalY = p.max(8, p.height / 2 - modalH / 2);
+            let statsH = isMobile ? 76 : 84;
+            let sy = modalY + 142;
+            let bannerH = isMobile ? 36 : 42;
+            let bannerY = sy + statsH + 12;
+            let bannerW = modalW * 0.8;
             let btnW = modalW * 0.8;
-            let btnH = isMobile ? 50 : 55;
-            let btnVotaY = sy + (isMobile ? 80 : 90) + 30; // sy + statsH + 30
-            let btnReportY = btnVotaY + btnH + 15;
-            let btnRipartiY = modalY + modalH - 50;
+            let btnH = isMobile ? 48 : 52;
+            let btnGiocaY = bannerY + bannerH + 16;
+            let btnPilloleY = btnGiocaY + btnH + 12;
 
-            if (isButtonAt(mx, my, p.width / 2, btnRipartiY - 20, btnW, 40)) { // Adjusted for "Tocca per giocare di nuovo"
-                initGame();
-            } else if (isButtonAt(mx, my, p.width / 2, btnVotaY, btnW, btnH)) {
+            if (isButtonAt(mx, my, p.width / 2, bannerY, bannerW, bannerH)) {
                 window.open('https://www.instagram.com/acu_gulliver/', '_blank');
-            } else if (isButtonAt(mx, my, p.width / 2, btnReportY, btnW, btnH)) {
+            } else if (isButtonAt(mx, my, p.width / 2, btnGiocaY, btnW, btnH)) {
+                initGame();
+            } else if (isButtonAt(mx, my, p.width / 2, btnPilloleY, btnW, btnH)) {
                 window.open('https://www.instagram.com/p/DX4JSIfjCOA/', '_blank');
             }
         }
