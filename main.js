@@ -185,7 +185,7 @@ const sketch = (p) => {
             drawBus(p, bus, scaleFactor, inputState);
             p.pop();
             if (explosionTimer % 2 === 0) particles.push(new SmokeParticle(p, bus.x, bus.y));
-            
+
             if (explosionTimer > 60) {
                 gameState = 'GAMEOVER';
                 explosionTimer = 0;
@@ -368,11 +368,11 @@ const sketch = (p) => {
             if (explosionTimer > 60) { gameState = 'WALKING_AWAY'; explosionTimer = 0; }
         } else if (gameState === 'WALKING_AWAY' || gameState === 'FINAL_SCREEN') {
             if (explosionTimer > 120) gameState = 'FINAL_SCREEN';
-            
+
             if (gameState === 'FINAL_SCREEN') {
                 let isMobile = p.width < 500;
                 textOpacity = p.min(textOpacity + 5, 255);
-                
+
                 // Dark Backdrop
                 p.fill(0, textOpacity * 0.85);
                 p.rect(0, 0, p.width, p.height);
@@ -382,7 +382,7 @@ const sketch = (p) => {
                 let modalH = isMobile ? 520 : 580;
                 let mx = p.width / 2 - modalW / 2;
                 let my = p.height / 2 - modalH / 2;
-                
+
                 // Main Card
                 p.fill(Config.UI_DARK_BG);
                 p.stroke(255, 40);
@@ -398,7 +398,7 @@ const sketch = (p) => {
                 p.textStyle(p.BOLD);
                 p.textSize(isMobile ? 28 : 34);
                 p.text("Il 46 è PIENO !!!", p.width / 2, my + 40);
-                
+
                 // Subtitle / Narrative
                 p.textStyle(p.NORMAL);
                 p.textSize(isMobile ? 16 : 18);
@@ -418,12 +418,12 @@ const sketch = (p) => {
                 p.fill(0, 60);
                 p.noStroke();
                 p.rect(sx, sy, statsW, statsH, 15);
-                
+
                 p.textAlign(p.CENTER, p.CENTER);
                 p.fill(255, 200);
                 p.textSize(12);
                 p.text("STATISTICHE DI VIAGGIO", p.width / 2, sy + 15);
-                
+
                 p.fill(255);
                 p.textSize(isMobile ? 13 : 15);
                 p.textStyle(p.BOLD);
@@ -436,7 +436,7 @@ const sketch = (p) => {
                 let btnH = isMobile ? 50 : 55;
                 let btnX = p.width / 2;
                 let btnVotaY = sy + statsH + 30;
-                
+
                 // VOTA Button
                 p.fill(Config.UI_BUTTON_RED);
                 p.rect(btnX - btnW / 2, btnVotaY, btnW, btnH, 12);
@@ -450,7 +450,7 @@ const sketch = (p) => {
                 p.rect(btnX - btnW / 2, btnReportY, btnW, btnH, 12);
                 p.fill(255);
                 p.textSize(isMobile ? 14 : 16);
-                p.text("LEGGI IL REPORT TRASPORTI", p.width / 2, btnReportY + btnH / 2);
+                p.text("PILLOLE TRASPORTI", p.width / 2, btnReportY + btnH / 2);
 
                 // Replay Button (Bottom of screen, subtle)
                 let btnRipartiY = my + modalH - 45;
@@ -466,7 +466,7 @@ const sketch = (p) => {
 
     const updateParticles = () => {
         for (let i = particles.length - 1; i >= 0; i--) {
-            particles[i].update(); 
+            particles[i].update();
             particles[i].show();
             if (particles[i].alpha <= 0) particles.splice(i, 1);
         }
@@ -541,8 +541,7 @@ const sketch = (p) => {
             } else if (isButtonAt(mx, my, p.width / 2, btnVotaY, btnW, btnH)) {
                 window.open('https://www.instagram.com/acu_gulliver/', '_blank');
             } else if (isButtonAt(mx, my, p.width / 2, btnReportY, btnW, btnH)) {
-                let pdfUrl = 'https://ugc.production.linktr.ee/818a15e8-6f08-441d-84f9-d8a20c7a6499_REPORT-QUESTIONARIO-TRASPORTI.pdf';
-                window.open('https://docs.google.com/viewer?url=' + encodeURIComponent(pdfUrl), '_blank');
+                window.open('https://www.instagram.com/p/DX4JSIfjCOA/', '_blank');
             }
         }
     };
